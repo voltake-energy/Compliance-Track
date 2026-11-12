@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="ms" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="Portal Kendiri Kakitangan — Semakan & Kemas Kini Sijil Kompetensi (CIDB, NIOSH, Working at Height & First Aid)">
+    <title>UniTrack Staff Portal — Kemas Kini Sijil Personel</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(148, 163, 184, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.65); }
+
+        .cert-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .cert-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col pb-28 selection:bg-indigo-500 selection:text-white">
+
+    <!-- ==================== TOP HEADER NAVBAR ==================== -->
+    <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 sm:h-20 gap-3">
+                
+                <!-- Brand & Title -->
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+                        <i class="ph-bold ph-identification-badge text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+                                UniTrack <span class="text-emerald-600 dark:text-emerald-400">Portal Staf</span>
+                            </h1>
+                            <span id="syncStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                Live Sync
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">
+                            Portal Kemas Kini Kendiri Tarikh Tamat & Muat Naik Sijil Kompetensi (Tab Cert)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Controls -->
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchCertDatabase(true)" id="btnRefresh" title="Segar Semula Data Sijil" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition">
+                        <i id="refreshIcon" class="ph-bold ph-arrows-clockwise text-base"></i>
+                        <span class="hidden sm:inline">Muat Semula</span>
+                    </button>
+
+                    <button onclick="toggleTheme()" aria-label="Tukar Tema" class="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-indigo-600 dark:text-amber-400 border border-indigo-200/60 dark:border-slate-700 transition">
+                        <i id="themeIcon" class="ph-fill ph-moon-stars text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN CONTAINER ==================== -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+
+        <!-- Loading Banner -->
+        <div id="loadingBanner" class="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 rounded-2xl p-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <i class="ph-bold ph-spinner animate-spin text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-indigo-950 dark:text-indigo-200">Menyambung Pangkalan Data Sijil...</h3>
+                    <p class="text-xs text-indigo-700 dark:text-indigo-300/80">Mengambil senarai ID Staf daripada Tab Cert (GID: 2314958).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BAHAGIAN 1: CARIAN STAFF ID ==================== -->
+        <section class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm">
+            <div class="max-w-xl mx-auto text-center space-y-3">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <i class="ph-fill ph-user-focus"></i>
+                    <span>Pengesahan ID Kakitangan</span>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
+                    Masukkan Staff ID Anda
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    Sila masukkan <strong>ID Staf</strong> anda (Rujukan Lajur A dalam Tab Cert, contoh: <code class="font-mono font-bold text-indigo-600 dark:text-indigo-400">VES003</code>) untuk menyemak dan mengemas kini tarikh tamat serta memuat naik salinan sijil.
+                </p>
+
+                <!-- Search Box Form -->
+                <form onsubmit="handleStaffSearch(event)" class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-md mx-auto">
+                    <div class="relative flex-1">
+                        <i class="ph-bold ph-identification-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl"></i>
+                        <input 
+                            type="text" 
+                            id="staffIdInput" 
+                            placeholder="Contoh: VES003" 
+                            required
+                            autocomplete="off"
+                            class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 text-base font-mono font-extrabold uppercase text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition"
+                        >
+                    </div>
+                    <button type="submit" id="btnLookupStaff" class="px-6 py-3.5 rounded-2xl text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 shrink-0">
+                        <i class="ph-bold ph-magnifying-glass text-lg"></i>
+                        <span>Cari Rekod</span>
+                    </button>
+                </form>
+
+                <!-- Ralat Carian Tidak Dijumpai -->
+                <div id="staffNotFoundAlert" class="hidden mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 text-left flex items-start gap-3">
+                    <i class="ph-fill ph-warning-circle text-2xl text-rose-600 dark:text-rose-400 shrink-0 mt-0.5"></i>
+                    <div>
+                        <h4 class="text-sm font-extrabold text-rose-900 dark:text-rose-200">Staff ID Tidak Dijumpai</h4>
+                        <p id="staffNotFoundMsg" class="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
+                            Tiada rekod kakitangan dengan ID tersebut di dalam Tab Cert. Sila pastikan ejaan ID adalah tepat (Contoh: VES003).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== BAHAGIAN 2: PAPARAN PROFIL & BORANG 4 SIJIL STAF ==================== -->
+        <section id="staffProfileSection" class="hidden space-y-6">
+
+            <!-- Kad Profil Staf Dijumpai -->
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-900 dark:to-indigo-950/60 text-white rounded-3xl p-6 sm:p-7 shadow-xl border border-slate-700/80 relative overflow-hidden">
+                <div class="absolute -right-8 -bottom-8 opacity-10 pointer-events-none">
+                    <i class="ph-fill ph-certificate text-9xl"></i>
+                </div>
+
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                    <div class="space-y-1.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-3 py-1 rounded-xl text-xs font-mono font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                ID STAF: <span id="displayStaffId">VES003</span>
+                            </span>
+                            <span class="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white/10 text-slate-200">
+                                Tab Cert (GID: 2314958)
+                            </span>
+                        </div>
+                        <h3 id="displayStaffName" class="text-xl sm:text-2xl font-extrabold tracking-tight text-white pt-1">
+                            MUHAMMAD BUKHARI BIN ABDUL RAZAK
+                        </h3>
+                        <p class="text-xs text-slate-300">
+                            Pilih tarikh tamat menggunakan <strong>Date Picker</strong> di bawah dan muat naik fail sijil (PDF / Imej) jika ada.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <button onclick="resetStaffSearch()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1.5">
+                            <i class="ph-bold ph-arrows-left-right"></i>
+                            <span>Tukar ID Lain</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ringkasan Status 4 Sijil Staf Ini -->
+                <div id="staffCertSummaryBadges" class="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
+                    <!-- Dijana oleh JS -->
+                </div>
+            </div>
+
+            <!-- Grid 4 Kad Kemas Kini Sijil (CIDB, NIOSH, Working at Height, First Aid) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="certCardsGrid">
+                <!-- Dijana secara dinamik oleh renderStaffCertCards() -->
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ==================== STICKY BOTTOM SAVE BAR ==================== -->
+    <div id="stickySaveBar" class="hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-3.5 shadow-2xl">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm">
+                <i class="ph-duotone ph-cloud-check text-2xl text-emerald-600 dark:text-emerald-400 shrink-0"></i>
+                <div>
+                    <span class="font-extrabold text-slate-900 dark:text-white">Sedia Untuk Disimpan ke Google Sheet</span>
+                    <span class="hidden sm:inline text-slate-500 dark:text-slate-400"> • Anda boleh simpan satu demi satu atau simpan semua serentak.</span>
+                </div>
+            </div>
+            <button onclick="saveAllStaffCerts()" id="btnSaveAllCerts" class="w-full sm:w-auto px-6 py-3 rounded-2xl text-xs sm:text-sm font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
+                <i id="saveAllIcon" class="ph-bold ph-floppy-disk text-lg"></i>
+                <span id="saveAllText">Simpan Semua Kemas Kini Sijil</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST NOTIFICATION ==================== -->
+    <div id="toastContainer" class="fixed bottom-24 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+    <script>
+        /**
+         * ============================================================================
+         * KONFIGURASI GOOGLE APPS SCRIPT & GOOGLE SHEET CSV (TAB CERT)
+         * ============================================================================
+         */
+        const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3g4l0NJ63zbkfdUep2cb_3W5iRPMPHmKof64BGn9A70L8n95b-j6ABc7NQ1y56di73g/exec";
+        const BASE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRe3gZF3EIUIii8YhRagQDLZR5bQP6RRSiTxNMVgWB7aUY6jiQILzD8oNanzZ7Pr_jn_iq3QCfbvGeD/pub";
+        const CERT_TAB_GID = "2314958";
+
+        /**
+         * Definisi 4 Jenis Sijil mengikut Lajur Sebenar dalam Tab Cert
+         */
+        const CERT_DEFINITIONS = [
+            {
+                key: 'CIDB',
+                title: 'CIDB Green Card',
+                subtitle: 'Kad Personel Binaan CIDB Malaysia',
+                dateCol: 'CIDB',
+                certCol: 'CIDB Cert',
+                icon: 'ph-hard-hat',
+                accent: 'indigo'
+            },
+            {
+                key: 'NIOSH',
+                title: 'NIOSH Safety Passport',
+                subtitle: 'Pasport Keselamatan (NTSP / TNB / Oil & Gas)',
+                dateCol: 'NIOSH',
+                certCol: 'Niosh Cert',
+                icon: 'ph-shield-check',
+                accent: 'sky'
+            },
+            {
+                key: 'WAH',
+                title: 'Working at Height (WaH)',
+                subtitle: 'Sijil Kecekapan Bekerja Di Tempat Tinggi',
+                dateCol: 'Working at Height',
+                certCol: 'WaH Cert',
+                icon: 'ph-ladder',
+                accent: 'amber'
+            },
+            {
+                key: 'FIRSTAID',
+                title: 'First Aid Competency',
+                subtitle: 'Sijil Pertolongan Cemas & CPR Di Tempat Kerja',
+                dateCol: 'First Aid',
+                certCol: 'First Aid Cert',
+                icon: 'ph-first-aid-kit',
+                accent: 'rose'
+            }
+        ];
+
+        /**
+         * Data Sandaran berdasarkan imej Google Sheet sebenar pengguna
+         */
+        const FALLBACK_CERT_ROWS = [
+            { "ID": "VES003", "NAME": "MUHAMMAD BUKHARI BIN ABDUL RAZAK", "CIDB": "", "CIDB Cert": "", "NIOSH": "", "Niosh Cert": "", "Working at Height": "", "WaH Cert": "", "First Aid": "", "First Aid Cert": "" },
+            { "ID": "VES005", "NAME": "MUHAMMAD NAZRIN BIN MUHAMMAD SALLEH", "CIDB": "", "CIDB Cert": "", "NIOSH": "", "Niosh Cert": "", "Working at Height": "", "WaH Cert": "", "First Aid": "", "First Aid Cert": "" },
+            { "ID": "VES006", "NAME": "NURUL FARAHIN BINTI ABDUL SHUKOR", "CIDB": "", "CIDB Cert": "", "NIOSH": "", "Niosh Cert": "", "Working at Height": "", "WaH Cert": "", "First Aid": "", "First Aid Cert": "" },
+            { "ID": "VES007", "NAME": "MUHD AUZAN BIN AZMI", "CIDB": "", "CIDB Cert": "", "NIOSH": "", "Niosh Cert": "", "Working at Height": "", "WaH Cert": "", "First Aid": "", "First Aid Cert": "" },
+            { "ID": "VES008", "NAME": "MUHAMMAD NAJMI BIN HASHIM", "CIDB": "", "CIDB Cert": "", "NIOSH": "", "Niosh Cert": "", "Working at Height": "", "WaH Cert": "", "First Aid": "", "First Aid Cert": "" }
+        ];
+
+        const staffState = {
+            certRows: [],
+            currentStaff: null,       // Objek baris staf semasa yang dipilih
+            currentRowIndex: -1,
+            pendingFiles: {           // Simpan fail Base64 yang dipilih mengikut certCol
+                'CIDB Cert': null,
+                'Niosh Cert': null,
+                'WaH Cert': null,
+                'First Aid Cert': null
+            }
+        };
+
+        /**
+         * ============================================================================
+         * PARSER CSV & UTILITI TARIKH
+         * ============================================================================
+         */
+        function parseCSVText(csvText) {
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') {
+                        currentCell += '"';
+                        i++;
+                    } else if (char === '"') {
+                        inQuotes = false;
+                    } else {
+                        currentCell += char;
+                    }
+                } else {
+                    if (char === '"') {
+                        inQuotes = true;
+                    } else if (char === ',') {
+                        currentRow.push(currentCell.trim());
+                        currentCell = '';
+                    } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+                        currentRow.push(currentCell.trim());
+                        if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+                        currentRow = [];
+                        currentCell = '';
+                        if (char === '\r') i++;
+                    } else if (char !== '\r') {
+                        currentCell += char;
+                    }
+                }
+            }
+
+            if (currentCell.length > 0 || currentRow.length > 0) {
+                currentRow.push(currentCell.trim());
+                if (currentRow.some(cell => cell !== '')) rows.push(currentRow);
+            }
+
+            if (rows.length === 0) return [];
+
+            let headerRowIndex = 0;
+            for (let r = 0; r < Math.min(rows.length, 5); r++) {
+                const joined = rows[r].join(' ').toLowerCase();
+                if (joined.includes('cidb') || joined.includes('niosh') || joined.includes('name')) {
+                    headerRowIndex = r;
+                    break;
+                }
+            }
+
+            const headers = rows[headerRowIndex].map((h, idx) => h || `Column_${idx + 1}`);
+            const records = [];
+
+            for (let r = headerRowIndex + 1; r < rows.length; r++) {
+                const rowCells = rows[r];
+                if (!rowCells.some(c => c && c.trim() !== '')) continue;
+                const obj = {};
+                headers.forEach((h, i) => {
+                    obj[h.trim()] = rowCells[i] !== undefined ? rowCells[i].trim() : '';
+                });
+                records.push(obj);
+            }
+            return records;
+        }
+
+        function getField(rowObj, possibleNames) {
+            if (!rowObj) return '';
+            const keys = Object.keys(rowObj);
+            for (const target of possibleNames) {
+                const exact = keys.find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
+                if (exact && rowObj[exact] !== '') return rowObj[exact];
+            }
+            return '';
+        }
+
+        /**
+         * Tukar sebarang format tarikh Sheet (DD/MM/YYYY atau YYYY-MM-DD) kepada YYYY-MM-DD untuk <input type="date">
+         */
+        function toDateInputValue(rawStr) {
+            if (!rawStr) return '';
+            const clean = String(rawStr).trim();
+            if (!clean || clean === '-') return '';
+
+            // Jika sudah YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+            // Jika DD/MM/YYYY atau DD-MM-YYYY
+            const dmy = clean.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+            if (dmy) {
+                let d = parseInt(dmy[1], 10);
+                let m = parseInt(dmy[2], 10);
+                let y = parseInt(dmy[3], 10);
+                if (y < 100) y += 2000;
+                if (m > 12 && d <= 12) { const tmp = d; d = m; m = tmp; }
+                return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+
+            const parsed = new Date(clean);
+            if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1990) {
+                const y = parsed.getFullYear();
+                const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                const d = String(parsed.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            return '';
+        }
+
+        /**
+         * Tukar nilai YYYY-MM-DD daripada Date Picker kepada format DD/MM/YYYY untuk disimpan seragam dalam Google Sheet
+         */
+        function formatInputDateToSheet(yyyyMmDd) {
+            if (!yyyyMmDd) return '';
+            const match = String(yyyyMmDd).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (match) {
+                return `${match[3]}/${match[2]}/${match[1]}`;
+            }
+            return yyyyMmDd;
+        }
+
+        /**
+         * Kira status tarikh tamat (Masih Sah / Hampir Tamat <= 60 hari / Tamat Tempoh / Belum Diisi)
+         */
+        function evaluateDateStatus(rawStr) {
+            const iso = toDateInputValue(rawStr);
+            if (!iso) {
+                return {
+                    status: 'empty',
+                    label: 'Belum Diisi',
+                    daysDiff: null,
+                    displayDate: 'Tiada Tarikh'
+                };
+            }
+
+            const [y, m, d] = iso.split('-').map(Number);
+            const target = new Date(y, m - 1, d);
+            target.setHours(0, 0, 0, 0);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const daysDiff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            const displayDate = target.toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+
+            if (daysDiff < 0) {
+                return { status: 'expired', label: `Tamat Tempoh (${Math.abs(daysDiff)}h lepas)`, daysDiff, displayDate };
+            } else if (daysDiff <= 60) {
+                return { status: 'expiring', label: `Hampir Tamat (${daysDiff} hari lagi)`, daysDiff, displayDate };
+            } else {
+                return { status: 'active', label: `Masih Sah (${daysDiff} hari lagi)`, daysDiff, displayDate };
+            }
+        }
+
+        /**
+         * ============================================================================
+         * MUAT TURUN DATA TAB CERT DARI APPS SCRIPT ATAU LIVE CSV
+         * ============================================================================
+         */
+        async function fetchCertDatabase(isManual = false) {
+            const loadingBanner = document.getElementById('loadingBanner');
+            const refreshIcon = document.getElementById('refreshIcon');
+            const syncBadge = document.getElementById('syncStatusBadge');
+
+            if (loadingBanner) loadingBanner.classList.remove('hidden');
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+            try {
+                let loaded = false;
+
+                // 1. Cuba ambil daripada Google Apps Script terlebih dahulu
+                try {
+                    const res = await fetch(`${DEFAULT_APPS_SCRIPT_URL}?action=getAllData&_t=${Date.now()}`, {
+                        method: 'GET',
+                        redirect: 'follow'
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json && json.status === 'success' && json.data && Array.isArray(json.data.cert)) {
+                            staffState.certRows = json.data.cert;
+                            loaded = true;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Apps Script GET fallback ke CSV langsung:', e);
+                }
+
+                // 2. Jika gagal, baca terus daripada Google Sheet Published CSV (Tab Cert GID: 2314958)
+                if (!loaded) {
+                    const csvUrl = `${BASE_SHEET_URL}?gid=${CERT_TAB_GID}&single=true&output=csv&_t=${Date.now()}`;
+                    const csvRes = await fetch(csvUrl, { cache: 'no-store' });
+                    if (!csvRes.ok) throw new Error('Gagal memuat turun CSV Tab Cert');
+                    const csvText = await csvRes.text();
+                    staffState.certRows = parseCSVText(csvText);
+                }
+
+                localStorage.setItem('unitrack_staff_cert_cache', JSON.stringify(staffState.certRows));
+
+                if (syncBadge) {
+                    syncBadge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800";
+                    syncBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Sheet`;
+                }
+
+                if (isManual) {
+                    showToast('Data sijil kakitangan berjaya dikemas kini!', 'success');
+                }
+            } catch (err) {
+                console.warn('Menggunakan data cache/fallback:', err);
+                const cached = localStorage.getItem('unitrack_staff_cert_cache');
+                if (cached) {
+                    try { staffState.certRows = JSON.parse(cached); } catch (e) { staffState.certRows = FALLBACK_CERT_ROWS; }
+                } else {
+                    staffState.certRows = FALLBACK_CERT_ROWS;
+                }
+            } finally {
+                if (loadingBanner) loadingBanner.classList.add('hidden');
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+
+                // Jika staf sedang membuka profilnya, segar semula paparan kadnya
+                if (staffState.currentStaff) {
+                    const activeId = getField(staffState.currentStaff, ['ID']);
+                    lookupAndRenderStaffById(activeId, false);
+                }
+            }
+        }
+
+        /**
+         * ============================================================================
+         * CARIAN STAFF ID & RENDER 4 KAD SIJIL
+         * ============================================================================
+         */
+        function handleStaffSearch(event) {
+            if (event) event.preventDefault();
+            const inputEl = document.getElementById('staffIdInput');
+            const queryId = (inputEl.value || '').trim().toUpperCase();
+            if (!queryId) return;
+
+            lookupAndRenderStaffById(queryId, true);
+        }
+
+        function lookupAndRenderStaffById(queryId, showNotification = true) {
+            const cleanQuery = String(queryId).trim().toUpperCase();
+            const alertBox = document.getElementById('staffNotFoundAlert');
+            const profileSec = document.getElementById('staffProfileSection');
+            const stickyBar = document.getElementById('stickySaveBar');
+
+            const foundIndex = staffState.certRows.findIndex(row => {
+                const rowId = String(getField(row, ['ID', 'Staff ID', 'No']) || '').trim().toUpperCase();
+                return rowId === cleanQuery;
+            });
+
+            if (foundIndex === -1) {
+                staffState.currentStaff = null;
+                staffState.currentRowIndex = -1;
+                alertBox.classList.remove('hidden');
+                document.getElementById('staffNotFoundMsg').textContent = `Tiada rekod kakitangan dengan ID "${cleanQuery}" dijumpai dalam Tab Cert. Sila semak semula ID anda.`;
+                profileSec.classList.add('hidden');
+                stickyBar.classList.add('hidden');
+                return;
+            }
+
+            alertBox.classList.add('hidden');
+            const staffRow = staffState.certRows[foundIndex];
+            staffState.currentStaff = staffRow;
+            staffState.currentRowIndex = foundIndex;
+
+            // Reset fail muat naik yang belum disimpan
+            staffState.pendingFiles = {
+                'CIDB Cert': null,
+                'Niosh Cert': null,
+                'WaH Cert': null,
+                'First Aid Cert': null
+            };
+
+            const staffId = getField(staffRow, ['ID', 'Staff ID']) || cleanQuery;
+            const staffName = getField(staffRow, ['NAME', 'Nama']) || '-';
+
+            document.getElementById('displayStaffId').textContent = staffId;
+            document.getElementById('displayStaffName').textContent = staffName;
+
+            renderStaffSummaryBadges(staffRow);
+            renderStaffCertCards(staffRow);
+
+            profileSec.classList.remove('hidden');
+            stickyBar.classList.remove('hidden');
+
+            if (showNotification) {
+                showToast(`Rekod dijumpai: ${staffName} (${staffId})`, 'success');
+                setTimeout(() => {
+                    profileSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        }
+
+        function resetStaffSearch() {
+            staffState.currentStaff = null;
+            staffState.currentRowIndex = -1;
+            document.getElementById('staffProfileSection').classList.add('hidden');
+            document.getElementById('stickySaveBar').classList.add('hidden');
+            const input = document.getElementById('staffIdInput');
+            input.value = '';
+            input.focus();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderStaffSummaryBadges(staffRow) {
+            const container = document.getElementById('staffCertSummaryBadges');
+            container.innerHTML = CERT_DEFINITIONS.map(def => {
+                const rawDate = getField(staffRow, [def.dateCol]);
+                const rawCert = getField(staffRow, [def.certCol]);
+                const evalInfo = evaluateDateStatus(rawDate);
+
+                const dotColors = {
+                    active: 'bg-emerald-400',
+                    expiring: 'bg-amber-400',
+                    expired: 'bg-rose-500 animate-ping',
+                    empty: 'bg-slate-400'
+                };
+
+                return `
+                    <div class="p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex flex-col justify-between">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-extrabold tracking-wider text-white">${def.key}</span>
+                            <span class="w-2 h-2 rounded-full ${dotColors[evalInfo.status]}"></span>
+                        </div>
+                        <div class="mt-2">
+                            <div class="text-xs font-mono font-bold text-slate-200">${escapeHtml(evalInfo.displayDate)}</div>
+                            <div class="text-[11px] text-slate-300/80 mt-0.5 flex items-center justify-between">
+                                <span>${escapeHtml(evalInfo.label)}</span>
+                                ${rawCert ? '<i class="ph-fill ph-file-check text-emerald-400" title="Dokumen Sijil Tersedia"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderStaffCertCards(staffRow) {
+            const grid = document.getElementById('certCardsGrid');
+
+            grid.innerHTML = CERT_DEFINITIONS.map(def => {
+                const rawDate = getField(staffRow, [def.dateCol]);
+                const rawCert = getField(staffRow, [def.certCol]);
+                const dateInputVal = toDateInputValue(rawDate);
+                const evalInfo = evaluateDateStatus(rawDate);
+                const hasUrl = String(rawCert).startsWith('http://') || String(rawCert).startsWith('https://');
+
+                return `
+                    <div class="cert-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between space-y-5">
+                        
+                        <!-- Card Header -->
+                        <div>
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-slate-700">
+                                        <i class="ph-duotone ${def.icon} text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Lajur: ${escapeHtml(def.dateCol)}</span>
+                                        <h4 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-snug">${escapeHtml(def.title)}</h4>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(def.subtitle)}</p>
+                                    </div>
+                                </div>
+                                <div id="badge-${def.key}">
+                                    ${getStatusBadgeHTML(evalInfo.status, evalInfo.label)}
+                                </div>
+                            </div>
+
+                            <!-- Input 1: Date Picker Tarikh Tamat -->
+                            <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <label for="dateInput-${def.key}" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center justify-between">
+                                    <span>1. Tarikh Tamat (${escapeHtml(def.dateCol)})</span>
+                                    <span class="text-[11px] font-mono font-normal text-slate-400">Asal: ${escapeHtml(rawDate || 'Kosong')}</span>
+                                </label>
+                                <div class="relative">
+                                    <input 
+                                        type="date" 
+                                        id="dateInput-${def.key}" 
+                                        value="${escapeHtml(dateInputVal)}"
+                                        onchange="previewDateChange('${def.key}', this.value)"
+                                        class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition cursor-pointer"
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- Input 2: Muat Naik Fail Sijil (Pilihan / Optional) -->
+                            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                                        2. Muat Naik Sijil (${escapeHtml(def.certCol)}) <span class="text-slate-400 font-normal">(Pilihan)</span>
+                                    </label>
+                                    ${hasUrl ? `
+                                        <a href="${escapeHtml(rawCert)}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1">
+                                            <i class="ph-bold ph-file-pdf"></i>
+                                            <span>Lihat Sijil Semasa</span>
+                                            <i class="ph-bold ph-arrow-square-out"></i>
+                                        </a>
+                                    ` : (rawCert ? `<span class="text-xs font-mono text-slate-500">${escapeHtml(rawCert)}</span>` : `<span class="text-[11px] text-slate-400">Tiada fail dimuat naik</span>`)}
+                                </div>
+
+                                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                                    <label class="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-300 dark:border-slate-700 shadow-sm transition shrink-0">
+                                        <i class="ph-bold ph-upload-simple text-sm"></i>
+                                        <span>Pilih Fail (PDF / Imej)</span>
+                                        <input type="file" id="fileInput-${def.key}" accept=".pdf,image/*" onchange="handleStaffFileSelect('${def.key}', '${def.certCol}', event)" class="hidden">
+                                    </label>
+
+                                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                                        <span id="fileName-${def.key}" class="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                                            Tiada fail baharu dipilih
+                                        </span>
+                                        <button type="button" id="clearFileBtn-${def.key}" onclick="clearStaffFile('${def.key}', '${def.certCol}')" class="hidden text-xs font-bold text-rose-600 hover:underline shrink-0">
+                                            Padam
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Butang Simpan Individu Untuk Kad Ini -->
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
+                            <button type="button" onclick="saveSingleStaffCert('${def.key}')" id="btnSaveSingle-${def.key}" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-extrabold bg-slate-900 hover:bg-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-600 text-white transition flex items-center justify-center gap-1.5">
+                                <i class="ph-bold ph-check-circle text-sm"></i>
+                                <span>Simpan ${escapeHtml(def.key)} Sahaja</span>
+                            </button>
+                        </div>
+
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function previewDateChange(certKey, newDateVal) {
+            const badgeContainer = document.getElementById(`badge-${certKey}`);
+            if (!badgeContainer) return;
+            const evalInfo = evaluateDateStatus(newDateVal);
+            badgeContainer.innerHTML = getStatusBadgeHTML(evalInfo.status, evalInfo.label);
+        }
+
+        function handleStaffFileSelect(certKey, certColName, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 8 * 1024 * 1024) {
+                showToast('Saiz fail melebihi had maksimum 8MB.', 'warning');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                staffState.pendingFiles[certColName] = {
+                    fileName: file.name,
+                    mimeType: file.type || 'application/pdf',
+                    base64: base64Data
+                };
+                const nameEl = document.getElementById(`fileName-${certKey}`);
+                if (nameEl) {
+                    nameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                    nameEl.className = "text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate";
+                }
+                const clearBtn = document.getElementById(`clearFileBtn-${certKey}`);
+                if (clearBtn) clearBtn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearStaffFile(certKey, certColName) {
+            staffState.pendingFiles[certColName] = null;
+            const fileInput = document.getElementById(`fileInput-${certKey}`);
+            if (fileInput) fileInput.value = '';
+            const nameEl = document.getElementById(`fileName-${certKey}`);
+            if (nameEl) {
+                nameEl.textContent = 'Tiada fail baharu dipilih';
+                nameEl.className = "text-xs font-mono text-slate-500 dark:text-slate-400 truncate";
+            }
+            const clearBtn = document.getElementById(`clearFileBtn-${certKey}`);
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
+
+        /**
+         * ============================================================================
+         * SIMPAN KEMAS KINI KE GOOGLE SHEET MELALUI APPS SCRIPT (staffUpdateCert)
+         * ============================================================================
+         */
+        async function saveSingleStaffCert(certKey) {
+            const def = CERT_DEFINITIONS.find(d => d.key === certKey);
+            if (!def || !staffState.currentStaff) return;
+
+            const btn = document.getElementById(`btnSaveSingle-${certKey}`);
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="ph-bold ph-spinner animate-spin text-sm"></i> <span>Menyimpan...</span>`;
+
+            const dateVal = document.getElementById(`dateInput-${certKey}`).value;
+            const formattedDate = formatInputDateToSheet(dateVal);
+
+            const updates = {
+                [def.dateCol]: formattedDate
+            };
+
+            const uploads = {};
+            if (staffState.pendingFiles[def.certCol]) {
+                uploads[def.certCol] = staffState.pendingFiles[def.certCol];
+            }
+
+            await executeStaffUpdateRequest(updates, uploads, () => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+        }
+
+        async function saveAllStaffCerts() {
+            if (!staffState.currentStaff) return;
+
+            const btn = document.getElementById('btnSaveAllCerts');
+            const icon = document.getElementById('saveAllIcon');
+            const text = document.getElementById('saveAllText');
+
+            btn.disabled = true;
+            icon.className = "ph-bold ph-spinner animate-spin text-lg";
+            text.textContent = "Sedang Menyimpan & Memuat Naik ke Google Sheet...";
+
+            const updates = {};
+            const uploads = {};
+
+            CERT_DEFINITIONS.forEach(def => {
+                const inputEl = document.getElementById(`dateInput-${def.key}`);
+                if (inputEl) {
+                    updates[def.dateCol] = formatInputDateToSheet(inputEl.value);
+                }
+                if (staffState.pendingFiles[def.certCol]) {
+                    uploads[def.certCol] = staffState.pendingFiles[def.certCol];
+                }
+            });
+
+            await executeStaffUpdateRequest(updates, uploads, () => {
+                btn.disabled = false;
+                icon.className = "ph-bold ph-floppy-disk text-lg";
+                text.textContent = "Simpan Semua Kemas Kini Sijil";
+            });
+        }
+
+        async function executeStaffUpdateRequest(updatesObj, uploadsObj, onCompleteCallback) {
+            const staffId = getField(staffState.currentStaff, ['ID', 'Staff ID']);
+            const staffName = getField(staffState.currentStaff, ['NAME', 'Nama']);
+
+            try {
+                const payload = {
+                    action: 'staffUpdateCert',
+                    staffId: staffId,
+                    staffName: staffName,
+                    gid: CERT_TAB_GID,
+                    updates: updatesObj,
+                    uploads: uploadsObj
+                };
+
+                const response = await fetch(DEFAULT_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    redirect: 'follow'
+                });
+
+                const resJson = await response.json();
+                if (resJson.status !== 'success') {
+                    throw new Error(resJson.message || 'Gagal mengemas kini rekod di dalam Google Sheet.');
+                }
+
+                // Kemas kini state tempatan dengan tarikh baharu & URL fail yang dimuat naik
+                Object.entries(updatesObj).forEach(([col, val]) => {
+                    staffState.currentStaff[col] = val;
+                });
+
+                if (resJson.uploadedUrls && typeof resJson.uploadedUrls === 'object') {
+                    Object.entries(resJson.uploadedUrls).forEach(([certCol, fileUrl]) => {
+                        staffState.currentStaff[certCol] = fileUrl;
+                        staffState.pendingFiles[certCol] = null;
+                    });
+                }
+
+                if (staffState.currentRowIndex !== -1) {
+                    staffState.certRows[staffState.currentRowIndex] = staffState.currentStaff;
+                    localStorage.setItem('unitrack_staff_cert_cache', JSON.stringify(staffState.certRows));
+                }
+
+                renderStaffSummaryBadges(staffState.currentStaff);
+                renderStaffCertCards(staffState.currentStaff);
+                showToast(`Berjaya! Maklumat sijil bagi ${staffId} telah dikemas kini.`, 'success');
+            } catch (err) {
+                console.error('Ralat staffUpdateCert:', err);
+                showToast(`Ralat menyimpan: ${err.message}`, 'warning');
+            } finally {
+                if (onCompleteCallback) onCompleteCallback();
+            }
+        }
+
+        /**
+         * ============================================================================
+         * KOMPONEN LENCANA STATUS & TEMA GELAP/CERAH
+         * ============================================================================
+         */
+        function getStatusBadgeHTML(status, labelText) {
+            if (status === 'expired') {
+                return `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/90 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping"></span>
+                        ${escapeHtml(labelText)}
+                    </span>
+                `;
+            }
+            if (status === 'expiring') {
+                return `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/90 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        ${escapeHtml(labelText)}
+                    </span>
+                `;
+            }
+            if (status === 'active') {
+                return `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        ${escapeHtml(labelText)}
+                    </span>
+                `;
+            }
+            return `
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                    ${escapeHtml(labelText)}
+                </span>
+            `;
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('unitrack_theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const htmlEl = document.documentElement;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                htmlEl.classList.add('dark');
+                htmlEl.classList.remove('light');
+            } else {
+                htmlEl.classList.remove('dark');
+                htmlEl.classList.add('light');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const htmlEl = document.documentElement;
+            const isDark = htmlEl.classList.contains('dark');
+            if (isDark) {
+                htmlEl.classList.remove('dark');
+                htmlEl.classList.add('light');
+                localStorage.setItem('unitrack_theme', 'light');
+            } else {
+                htmlEl.classList.add('dark');
+                htmlEl.classList.remove('light');
+                localStorage.setItem('unitrack_theme', 'dark');
+            }
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('themeIcon');
+            if (!icon) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            icon.className = isDark ? 'ph-fill ph-sun text-lg' : 'ph-fill ph-moon-stars text-lg';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const colors = {
+                success: 'bg-emerald-600 text-white',
+                warning: 'bg-amber-500 text-white',
+                info: 'bg-slate-900 dark:bg-indigo-600 text-white'
+            };
+            const icons = {
+                success: 'ph-check-circle',
+                warning: 'ph-warning-circle',
+                info: 'ph-info'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-bold ${colors[type] || colors.info} transition-all duration-300`;
+            toast.innerHTML = `
+                <i class="ph-fill ${icons[type] || icons.info} text-lg shrink-0"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
+            await fetchCertDatabase(false);
+
+            // Sokongan parameter URL ?id=VES003 jika dikongsi terus kepada staf
+            const urlParams = new URLSearchParams(window.location.search);
+            const prefillId = urlParams.get('id') || urlParams.get('staffId');
+            if (prefillId) {
+                document.getElementById('staffIdInput').value = prefillId.toUpperCase();
+                lookupAndRenderStaffById(prefillId, true);
+            }
+        });
+    </script>
+</body>
+</html>
