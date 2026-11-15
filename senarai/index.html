@@ -170,6 +170,39 @@
         </div>
     </div>
 
+    <!-- ==================== EDIT PROFIL STAF ==================== -->
+    <div id="editModal" class="hidden-view fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <form id="editForm" class="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4 max-h-[92vh] overflow-auto">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-base font-extrabold">Edit maklumat staf</h2>
+                    <p id="editWho" class="text-xs text-slate-500 dark:text-slate-400 truncate"></p>
+                </div>
+                <button type="button" id="editClose" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div>
+                <label for="editDesignation" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Designation</label>
+                <input id="editDesignation" type="text" maxlength="80" placeholder="cth. ELECTRICAL CHARGEMAN" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="editIc" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">No. IC</label>
+                <input id="editIc" type="text" inputmode="numeric" maxlength="20" placeholder="cth. 920419-02-5445" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Salinan IC (depan dan belakang dalam satu gambar)</label>
+                <input id="editIcFile" type="file" accept="image/*,application/pdf" class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-bold file:text-indigo-700 dark:file:bg-indigo-950 dark:file:text-indigo-300">
+                <p id="editIcState" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5"></p>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Fail disimpan peribadi dalam Drive (tidak dikongsi). JPG atau PNG memberi hasil terbaik dalam PDF.</p>
+            </div>
+            <p id="editError" class="hidden-view text-sm font-semibold text-rose-600 dark:text-rose-400"></p>
+            <div class="flex gap-2 justify-end">
+                <button type="button" id="editCancel" class="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm font-bold">Batal</button>
+                <button type="submit" id="editSave" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 text-sm">Simpan</button>
+            </div>
+        </form>
+    </div>
+    <div id="toast" class="hidden-view fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] rounded-xl bg-slate-900 text-white text-sm font-semibold px-4 py-2.5 shadow-lg"></div>
+
     <!-- ==================== PRATONTON / CETAK ==================== -->
     <div id="previewView" class="hidden-view">
         <div class="toolbar no-print">
@@ -431,7 +464,7 @@
                 + '<span class="font-bold text-sm">' + esc(s.name) + '</span></div>'
                 + '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + esc(s.designation || 'Designation belum diisi') + '</p>'
                 + '<div class="flex flex-wrap gap-1.5 mt-2">' + chips + '</div>'
-                + '</div></label></li>';
+                + '</div><button type="button" data-edit="' + esc(s.id) + '" title="Edit Designation / IC" class="shrink-0 w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500"><i class="ph-bold ph-pencil-simple"></i></button></label></li>';
         }).join('');
         $('emptyList').classList.toggle('hidden-view', list.length > 0);
         $('listCount').textContent = list.length + ' daripada ' + S.staff.length + ' staf dipaparkan';
@@ -517,9 +550,9 @@
                 else if (c.st.state === 'invalid' || c.st.state === 'none') out.push({ level: 'warn', text: who + ': ' + nm + ' — ' + c.st.text });
                 if (!c.fileId) out.push({ level: 'warn', text: who + ': ' + nm + ' tiada lampiran fail' });
             });
-            if (S.opts.IC && !s.hasIcImage) out.push({ level: 'warn', text: who + ': salinan IC belum dimuat naik (tab Staff)' });
-            if (!s.ic) out.push({ level: 'warn', text: who + ': no. IC belum diisi' });
-            if (!s.designation) out.push({ level: 'warn', text: who + ': designation belum diisi' });
+            if (S.opts.IC && !s.hasIcImage) out.push({ level: 'warn', text: who + ': salinan IC belum dimuat naik (butang Edit)' });
+            if (!s.ic) out.push({ level: 'warn', text: who + ': no. IC belum diisi (butang Edit)' });
+            if (!s.designation) out.push({ level: 'warn', text: who + ': designation belum diisi (butang Edit)' });
         });
         return out;
     }
@@ -694,11 +727,109 @@
         $('previewStatus').textContent = S.selected.length + ' personel · ' + slots.length + ' lampiran'
             + (gagal ? ' · ' + gagal + ' tidak dapat dipaparkan (lihat kotak merah)' : ' · siap');
         $('btnPrint').disabled = false;
+        // Rekod dalam Job_Log (tidak kritikal, gagal diabaikan).
+        apiPost({ action: 'logJob', adminPin: S.pin, title: title, staffIds: S.selected.slice() }).catch(() => {});
     }
 
     function closePreview() {
         $('previewView').classList.add('hidden-view');
         document.body.style.overflow = '';
+    }
+
+    /* ============================================================================
+     * EDIT PROFIL STAF
+     * ========================================================================== */
+    let toastTimer = null;
+    function toast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.remove('hidden-view');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.add('hidden-view'), 3500);
+    }
+
+    const EDIT = { id: '', file: null };
+
+    function openEdit(id) {
+        const s = S.byId[id];
+        if (!s) return;
+        EDIT.id = id; EDIT.file = null;
+        $('editWho').textContent = s.id + ' · ' + s.name;
+        $('editDesignation').value = s.designation || '';
+        $('editIc').value = s.ic || '';
+        $('editIcFile').value = '';
+        $('editIcState').textContent = s.hasIcImage ? 'Salinan IC sedia ada akan diganti jika fail baharu dipilih.' : 'Belum ada salinan IC.';
+        $('editError').classList.add('hidden-view');
+        $('editSave').disabled = false;
+        $('editSave').textContent = 'Simpan';
+        $('editModal').classList.remove('hidden-view');
+    }
+    function closeEdit() { $('editModal').classList.add('hidden-view'); }
+
+    function readAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result).split(',')[1]);
+            r.onerror = () => reject(new Error('Gagal membaca fail.'));
+            r.readAsDataURL(file);
+        });
+    }
+
+    /** Imej besar dikecilkan (maks 1800px, JPEG) supaya muat naik pantas dan kekal dalam had pelayan. */
+    async function prepareIcFile(file) {
+        if (file.type === 'application/pdf') {
+            if (file.size > 4 * 1024 * 1024) throw new Error('PDF melebihi 4MB.');
+            return { fileName: file.name, mimeType: file.type, base64: await readAsBase64(file) };
+        }
+        if (!/^image\//.test(file.type)) throw new Error('Jenis fail tidak disokong. Guna JPG, PNG atau PDF.');
+        const url = URL.createObjectURL(file);
+        try {
+            const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Gambar tidak boleh dibaca (cuba JPG atau PNG).')); i.src = url; });
+            const max = 1800;
+            const k = Math.min(1, max / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            const b64 = c.toDataURL('image/jpeg', 0.85).split(',')[1];
+            return { fileName: file.name.replace(/\.[^.]+$/, '') + '.jpg', mimeType: 'image/jpeg', base64: b64 };
+        } finally { URL.revokeObjectURL(url); }
+    }
+
+    async function saveEdit(e) {
+        e.preventDefault();
+        const s = S.byId[EDIT.id];
+        if (!s) return;
+        const err = $('editError');
+        err.classList.add('hidden-view');
+        const designation = $('editDesignation').value.trim();
+        const ic = $('editIc').value.trim();
+        if (ic && !/^[\d-]{6,20}$/.test(ic)) { err.textContent = 'No. IC: nombor dan sengkang sahaja (cth. 920419-02-5445).'; err.classList.remove('hidden-view'); return; }
+
+        const payload = { action: 'updateStaffProfile', adminPin: S.pin, staffId: s.id };
+        if (designation !== (s.designation || '')) payload.designation = designation;
+        if (ic !== (s.ic || '')) payload.ic = ic;
+        const f = $('editIcFile').files[0];
+
+        $('editSave').disabled = true;
+        $('editSave').textContent = 'Menyimpan…';
+        try {
+            if (f) payload.icFile = await prepareIcFile(f);
+            if (!payload.designation && payload.designation !== '' && !payload.ic && payload.ic !== '' && !payload.icFile) {
+                closeEdit(); toast('Tiada perubahan.'); return;
+            }
+            const r = await apiPost(payload);
+            if (!r || r.status !== 'success') throw new Error(explainPrivateError(r && r.message));
+            await loadData();
+            updateCounts();
+            if (S.step === 2) renderStep2(); else renderStaffList();
+            closeEdit();
+            toast('Disimpan: ' + ((r.data && r.data.changed) || []).join(', '));
+        } catch (ex) {
+            err.textContent = ex.message;
+            err.classList.remove('hidden-view');
+            $('editSave').disabled = false;
+            $('editSave').textContent = 'Simpan';
+        }
     }
 
     /* ============================================================================
@@ -788,6 +919,15 @@
         }
         renderSelected(); renderWarnings(); updateCounts();
     });
+
+    $('staffList').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-edit]');
+        if (b) { e.preventDefault(); openEdit(b.dataset.edit); }
+    });
+    $('editForm').addEventListener('submit', saveEdit);
+    $('editCancel').addEventListener('click', closeEdit);
+    $('editClose').addEventListener('click', closeEdit);
+    $('editModal').addEventListener('click', (e) => { if (e.target === $('editModal')) closeEdit(); });
 
     $('btnGenerate').addEventListener('click', generate);
     $('btnBack').addEventListener('click', closePreview);
