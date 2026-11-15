@@ -984,7 +984,7 @@
          * ============================================================================
          */
         // URL Web App Google Apps Script yang telah ditetapkan secara terus (Hardcoded)
-        const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3g4l0NJ63zbkfdUep2cb_3W5iRPMPHmKof64BGn9A70L8n95b-j6ABc7NQ1y56di73g/exec";
+        const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbe4NP4cC8ozLnE7xh-55Hx5FL7Bp5asvrujpi6bT47PumlPyXoSkri8rYRkqxThnTmA/exec";
 
         const appState = {
             activeTab: 'dashboard',       // 'dashboard' | 'kereta' | 'motosikal' | 'chargeman' | 'cert' | 'semua'
@@ -1577,14 +1577,18 @@
                         fetchSingleTabCSV(SHEET_TABS.kereta.gid),
                         fetchSingleTabCSV(SHEET_TABS.motosikal.gid),
                         fetchSingleTabCSV(SHEET_TABS.chargeman.gid),
-                        fetchSingleTabCSV(SHEET_TABS.cert.gid)
+                        Promise.resolve(null) // Cert mengandungi data sulit: tidak dibaca melalui CSV awam
                     ]);
 
                     appState.rawData = {
                         kereta: keretaData.map(sanitizeRowForPDPA),
                         motosikal: motosikalData.map(sanitizeRowForPDPA),
                         chargeman: chargemanData.map(sanitizeRowForPDPA),
-                        cert: certData.map(sanitizeRowForPDPA)
+                        cert: certData ? certData.map(sanitizeRowForPDPA) : (() => {
+                            // Guna cache terakhir daripada Apps Script (bukan CSV awam)
+                            try { return (JSON.parse(localStorage.getItem('unitrack_cached_data') || '{}').rawData?.cert || []).map(sanitizeRowForPDPA); }
+                            catch (e) { return []; }
+                        })()
                     };
                 }
 
@@ -3280,6 +3284,7 @@
                 const compVal = record ? (getField(raw, ['Competency No.']) || record.competencyNo) : '';
                 const expVal = record ? (getField(raw, ['Expiry Date']) || record.rawDate) : '';
                 const docVal = record ? (getField(raw, ['Document', 'License Copy']) || '') : '';
+                const staffIdVal = record ? (getField(raw, ['ID']) || '') : '';
 
                 container.innerHTML = `
                     <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
@@ -3306,6 +3311,10 @@
                             <input type="text" name="Competency No." value="${escapeHtml(compVal)}" placeholder="Contoh: PJ-T-4-B-0192-2021" required class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-mono">
                         </div>
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">ID Staf (VESxxx, padankan dengan tab Cert)</label>
+                        <input type="text" name="ID" value="${escapeHtml(staffIdVal)}" placeholder="Contoh: VES007" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold">
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Expiry Date (Tarikh Tamat)</label>
@@ -3330,6 +3339,7 @@
                 const wahCert = record ? (getField(raw, ['WaH Cert']) || '') : '';
                 const faDate = record ? (getField(raw, ['First Aid']) || '') : '';
                 const faCert = record ? (getField(raw, ['First Aid Cert']) || '') : '';
+                const designationVal = record ? (getField(raw, ['Designation']) || '') : '';
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -3341,6 +3351,11 @@
                             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">NAME (Nama Kakitangan)</label>
                             <input type="text" name="NAME" value="${escapeHtml(nameVal)}" placeholder="Nama Penuh Personel" required class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold">
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Designation (Jawatan)</label>
+                        <input type="text" name="Designation" value="${escapeHtml(designationVal)}" placeholder="Contoh: ELECTRICAL CHARGEMAN" class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold">
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -3427,6 +3442,9 @@
             formData.forEach((value, key) => {
                 rowObject[key] = String(value).trim();
             });
+
+            // ID kosong tidak dihantar (elak memadam ID sedia ada jika data cache lama)
+            if (category === 'chargeman' && !rowObject['ID']) delete rowObject['ID'];
 
             // Pastikan tiada medan NRIC terselit (PDPA)
             const sanitizedRow = sanitizeRowForPDPA(rowObject);
