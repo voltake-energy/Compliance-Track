@@ -234,7 +234,7 @@
          * KONFIGURASI GOOGLE APPS SCRIPT & GOOGLE SHEET CSV (TAB CERT)
          * ============================================================================
          */
-        const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3g4l0NJ63zbkfdUep2cb_3W5iRPMPHmKof64BGn9A70L8n95b-j6ABc7NQ1y56di73g/exec";
+        const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbe4NP4cC8ozLnE7xh-55Hx5FL7Bp5asvrujpi6bT47PumlPyXoSkri8rYRkqxThnTmA/exec";
         const BASE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRe3gZF3EIUIii8YhRagQDLZR5bQP6RRSiTxNMVgWB7aUY6jiQILzD8oNanzZ7Pr_jn_iq3QCfbvGeD/pub";
         const CERT_TAB_GID = "2314958";
 
@@ -465,7 +465,7 @@
 
         /**
          * ============================================================================
-         * MUAT TURUN DATA TAB CERT DARI APPS SCRIPT ATAU LIVE CSV
+         * MUAT TURUN DATA TAB CERT DARI APPS SCRIPT
          * ============================================================================
          */
         async function fetchCertDatabase(isManual = false) {
@@ -496,14 +496,9 @@
                     console.warn('Apps Script GET fallback ke CSV langsung:', e);
                 }
 
-                // 2. Jika gagal, baca terus daripada Google Sheet Published CSV (Tab Cert GID: 2314958)
-                if (!loaded) {
-                    const csvUrl = `${BASE_SHEET_URL}?gid=${CERT_TAB_GID}&single=true&output=csv&_t=${Date.now()}`;
-                    const csvRes = await fetch(csvUrl, { cache: 'no-store' });
-                    if (!csvRes.ok) throw new Error('Gagal memuat turun CSV Tab Cert');
-                    const csvText = await csvRes.text();
-                    staffState.certRows = parseCSVText(csvText);
-                }
+                // 2. Tiada fallback CSV awam untuk tab Cert (ia mengandungi data sulit staf).
+                //    Jika Apps Script gagal, jatuh ke cache / data sandaran di bawah.
+                if (!loaded) throw new Error('Apps Script tidak dapat dihubungi');
 
                 localStorage.setItem('unitrack_staff_cert_cache', JSON.stringify(staffState.certRows));
 
