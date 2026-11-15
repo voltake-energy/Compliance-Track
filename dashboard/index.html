@@ -818,7 +818,7 @@
                     </div>
 
                     <!-- Bahagian Muat Naik Dokumen / Sijil (Google Drive Upload) -->
-                    <div class="p-4 rounded-2xl bg-indigo-50/60 dark:bg-slate-800/70 border border-indigo-200/80 dark:border-slate-700 space-y-3">
+                    <div id="crudGenericUploadBox" class="p-4 rounded-2xl bg-indigo-50/60 dark:bg-slate-800/70 border border-indigo-200/80 dark:border-slate-700 space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <i class="ph-duotone ph-cloud-arrow-up text-xl text-indigo-600 dark:text-indigo-400"></i>
@@ -1011,7 +1011,8 @@
             appsScriptUrl: DEFAULT_APPS_SCRIPT_URL,
             crudMode: 'create',           // 'create' | 'edit'
             editingUid: null,
-            pendingUploadFile: null       // { fileName, mimeType, base64 }
+            pendingUploadFile: null,      // { fileName, mimeType, base64 }
+            pendingCertFiles: {}          // Borang Cert: { 'CIDB Cert': {fileName, mimeType, base64}, ... }
         };
 
         // Chart Instances
@@ -3190,6 +3191,7 @@
 
             appState.crudMode = mode;
             appState.pendingUploadFile = null;
+            appState.pendingCertFiles = {};
             clearSelectedCrudFile();
 
             const titleEl = document.getElementById('crudModalTitle');
@@ -3227,12 +3229,23 @@
             document.getElementById('crudFormModal').classList.add('hidden');
         }
 
+        const CRUD_CERTS = [
+            { key: 'CIDB',  title: '1. Sijil CIDB',              dateCol: 'CIDB',              fileCol: 'CIDB Cert',      icon: 'ph-hard-hat' },
+            { key: 'NIOSH', title: '2. Sijil NIOSH',             dateCol: 'NIOSH',             fileCol: 'Niosh Cert',     icon: 'ph-shield-check' },
+            { key: 'WAH',   title: '3. Working at Height (WaH)', dateCol: 'Working at Height', fileCol: 'WaH Cert',       icon: 'ph-ladder' },
+            { key: 'FA',    title: '4. Sijil First Aid',         dateCol: 'First Aid',         fileCol: 'First Aid Cert', icon: 'ph-first-aid-kit' }
+        ];
+
         function renderCrudDynamicFields(record = null) {
             const cat = document.getElementById('crudCategorySelect').value;
             const container = document.getElementById('crudDynamicFieldsContainer');
             const certColumnBox = document.getElementById('crudTargetCertColumnBox');
 
             const raw = record?.rawRow || {};
+
+            // Kategori Cert: muat naik fail dalam setiap kad sijil (bukan kotak umum di bawah)
+            const genericUploadBox = document.getElementById('crudGenericUploadBox');
+            if (genericUploadBox) genericUploadBox.classList.toggle('hidden', cat === 'cert');
 
             if (cat === 'kereta' || cat === 'motosikal') {
                 certColumnBox.classList.add('hidden');
@@ -3327,7 +3340,8 @@
                     </div>
                 `;
             } else if (cat === 'cert') {
-                certColumnBox.classList.remove('hidden');
+                certColumnBox.classList.add('hidden');
+                appState.pendingCertFiles = {};
                 const nextId = record ? record.staffId : `EMP-00${(appState.rawData.cert?.length || 0) + 1}`;
                 const nameVal = record ? record.staffName : '';
 
@@ -3340,6 +3354,52 @@
                 const faDate = record ? (getField(raw, ['First Aid']) || '') : '';
                 const faCert = record ? (getField(raw, ['First Aid Cert']) || '') : '';
                 const designationVal = record ? (getField(raw, ['Designation']) || '') : '';
+
+                const cardsHtml = CRUD_CERTS.map(def => {
+                    const rawDate = record ? (getField(raw, [def.dateCol]) || '') : '';
+                    const rawFile = record ? (getField(raw, [def.fileCol]) || '') : '';
+                    const iso = dateToIsoInput(rawDate);
+                    const hasUrl = /^https?:\/\//i.test(rawFile);
+                    return `
+                        <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-slate-700">
+                                    <i class="ph-duotone ${def.icon} text-lg"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Lajur: ${escapeHtml(def.dateCol)}</div>
+                                    <div class="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">${escapeHtml(def.title)}</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                                    <span>1. Tarikh Tamat</span>
+                                    <span class="font-mono font-normal normal-case text-slate-400">Asal: ${escapeHtml(rawDate || 'Kosong')}</span>
+                                </label>
+                                <input type="date" name="${escapeHtml(def.dateCol)}" value="${escapeHtml(iso)}" data-initial="${escapeHtml(iso)}" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">2. Muat Naik Sijil <span class="font-normal normal-case text-slate-400">(Pilihan)</span></span>
+                                    ${hasUrl
+                                        ? `<a href="${escapeHtml(rawFile)}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"><i class="ph-bold ph-file-pdf"></i><span>Lihat Sijil Semasa</span></a>`
+                                        : `<span class="text-[11px] text-slate-400">Tiada fail dimuat naik</span>`}
+                                </div>
+                                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 flex flex-wrap items-center gap-2">
+                                    <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-slate-700 transition">
+                                        <i class="ph-bold ph-upload-simple text-sm"></i>
+                                        <span>Pilih Fail (PDF / Imej)</span>
+                                        <input type="file" id="crudFile-${def.key}" accept=".pdf,image/*" onchange="handleCrudCertFile('${def.key}', '${def.fileCol}', event)" class="hidden">
+                                    </label>
+                                    <span id="crudFileName-${def.key}" class="text-xs font-mono text-slate-500 dark:text-slate-400 truncate min-w-0 flex-1">Tiada fail baharu dipilih</span>
+                                    <button type="button" id="crudFileClear-${def.key}" onclick="clearCrudCertFile('${def.key}', '${def.fileCol}')" class="hidden text-xs font-bold text-rose-600 hover:underline">Padam</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -3359,32 +3419,70 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                            <div class="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">1. Sijil CIDB</div>
-                            <input type="text" name="CIDB" value="${escapeHtml(cidbDate)}" placeholder="Tarikh Tamat CIDB (DD/MM/YYYY)" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                            <input type="text" name="CIDB Cert" value="${escapeHtml(cidbCert)}" placeholder="No. Sijil / URL Dokumen CIDB" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                        </div>
-
-                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                            <div class="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">2. Sijil NIOSH</div>
-                            <input type="text" name="NIOSH" value="${escapeHtml(nioshDate)}" placeholder="Tarikh Tamat NIOSH (DD/MM/YYYY)" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                            <input type="text" name="Niosh Cert" value="${escapeHtml(nioshCert)}" placeholder="No. Sijil / URL Dokumen NIOSH" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                        </div>
-
-                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                            <div class="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">3. Working at Height (WaH)</div>
-                            <input type="text" name="Working at Height" value="${escapeHtml(wahDate)}" placeholder="Tarikh Tamat WaH (DD/MM/YYYY)" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                            <input type="text" name="WaH Cert" value="${escapeHtml(wahCert)}" placeholder="No. Sijil / URL Dokumen WaH" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                        </div>
-
-                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                            <div class="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">4. Sijil First Aid</div>
-                            <input type="text" name="First Aid" value="${escapeHtml(faDate)}" placeholder="Tarikh Tamat First Aid (DD/MM/YYYY)" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                            <input type="text" name="First Aid Cert" value="${escapeHtml(faCert)}" placeholder="No. Sijil / URL Dokumen First Aid" class="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
-                        </div>
+                        ${cardsHtml}
                     </div>
                 `;
             }
+        }
+
+        /**
+         * Borang Cert: definisi 4 kad sijil (sama seperti Portal Staf) dan pembantu tarikh / fail
+         */
+        function dateToIsoInput(raw) {
+            const d = parseFlexibleDate(raw);
+            if (!d || isNaN(d.getTime())) return '';
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function isoToSheetDate(iso) {
+            const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+        }
+
+        function handleCrudCertFile(certKey, certColName, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 8 * 1024 * 1024) {
+                showToast('Saiz fail melebihi had maksimum 8MB.', 'warning');
+                event.target.value = '';
+                return;
+            }
+            if (!(file.type === 'application/pdf' || /^image\//.test(file.type))) {
+                showToast('Jenis fail tidak disokong. Guna PDF atau gambar.', 'warning');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                appState.pendingCertFiles[certColName] = {
+                    fileName: file.name,
+                    mimeType: file.type,
+                    base64: e.target.result.split(',')[1]
+                };
+                const nameEl = document.getElementById(`crudFileName-${certKey}`);
+                if (nameEl) {
+                    nameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                    nameEl.className = 'text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate min-w-0 flex-1';
+                }
+                const clearBtn = document.getElementById(`crudFileClear-${certKey}`);
+                if (clearBtn) clearBtn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearCrudCertFile(certKey, certColName) {
+            delete appState.pendingCertFiles[certColName];
+            const input = document.getElementById(`crudFile-${certKey}`);
+            if (input) input.value = '';
+            const nameEl = document.getElementById(`crudFileName-${certKey}`);
+            if (nameEl) {
+                nameEl.textContent = 'Tiada fail baharu dipilih';
+                nameEl.className = 'text-xs font-mono text-slate-500 dark:text-slate-400 truncate min-w-0 flex-1';
+            }
+            const clearBtn = document.getElementById(`crudFileClear-${certKey}`);
+            if (clearBtn) clearBtn.classList.add('hidden');
         }
 
         /**
@@ -3443,6 +3541,24 @@
                 rowObject[key] = String(value).trim();
             });
 
+            // Cert: tarikh dari pemilih tarikh (YYYY-MM-DD) ditukar kepada DD/MM/YYYY.
+            // Dalam mod edit, tarikh yang tidak diubah tidak dihantar (teks asal Sheet kekal).
+            const certUploads = {};
+            if (category === 'cert') {
+                CRUD_CERTS.forEach(def => {
+                    const el = form.elements[def.dateCol];
+                    if (!el) return;
+                    if (appState.crudMode === 'edit' && el.value === (el.dataset.initial || '')) {
+                        delete rowObject[def.dateCol];
+                        return;
+                    }
+                    rowObject[def.dateCol] = isoToSheetDate(el.value);
+                });
+                Object.keys(appState.pendingCertFiles || {}).forEach(col => {
+                    if (appState.pendingCertFiles[col]) certUploads[col] = appState.pendingCertFiles[col];
+                });
+            }
+
             // ID kosong tidak dihantar (elak memadam ID sedia ada jika data cache lama)
             if (category === 'chargeman' && !rowObject['ID']) delete rowObject['ID'];
 
@@ -3457,9 +3573,8 @@
             submitIcon.className = 'ph-bold ph-spinner animate-spin text-base';
             submitText.textContent = 'Menyimpan & Memuat Naik...';
 
-            const targetCertField = category === 'cert'
-                ? document.getElementById('crudTargetCertColumn').value
-                : 'Document';
+            const targetCertField = category === 'cert' ? '' : 'Document';
+            let uploadWarning = '';
 
             try {
                 // Jika URL Apps Script telah ditetapkan, hantar POST ke Google Sheet & Google Drive
@@ -3475,8 +3590,9 @@
                         gid: SHEET_TABS[category].gid,
                         rowIndex: editingRecord ? editingRecord.rowIndex : null,
                         rowData: sanitizedRow,
-                        uploadFile: appState.pendingUploadFile,
-                        targetFileColumn: targetCertField
+                        uploadFile: category === 'cert' ? null : appState.pendingUploadFile,
+                        uploadFiles: category === 'cert' ? certUploads : undefined,
+                        targetFileColumn: targetCertField || undefined
                     };
 
                     const response = await fetch(appState.appsScriptUrl, {
@@ -3491,12 +3607,20 @@
                         throw new Error(resJson.message || 'Ralat daripada pelayan Google Apps Script');
                     }
 
-                    if (resJson.uploadedFileUrl) {
+                    if (resJson.uploadedFileUrl && targetCertField) {
                         sanitizedRow[targetCertField] = resJson.uploadedFileUrl;
+                    }
+                    if (category === 'cert') {
+                        const got = resJson.uploadedUrls || {};
+                        Object.keys(got).forEach(col => { sanitizedRow[col] = got[col]; });
+                        const tiada = Object.keys(certUploads).filter(col => !got[col]);
+                        if (tiada.length) {
+                            uploadWarning = 'Tarikh disimpan, tetapi fail (' + tiada.join(', ') + ') TIDAK dimuat naik. Pastikan Code.gs terkini sudah di-deploy (New version).';
+                        }
                     }
                 } else {
                     // Jika belum sambung URL Apps Script, simpan dalam memori & cache tempatan serta maklumkan Admin
-                    if (appState.pendingUploadFile) {
+                    if (appState.pendingUploadFile && targetCertField) {
                         sanitizedRow[targetCertField] = `Fail Tempatan: ${appState.pendingUploadFile.fileName}`;
                     }
                 }
@@ -3525,12 +3649,16 @@
                 refreshAllCalculationsAndUI();
                 closeCrudModal();
 
-                showToast(
-                    appState.appsScriptUrl
-                        ? 'Rekod & dokumen berjaya dikemas kini ke Google Sheet!'
-                        : 'Rekod dikemas kini dalam sistem! (Sambungkan URL Apps Script di menu Admin untuk simpan kekal ke Sheet).',
-                    'success'
-                );
+                if (uploadWarning) {
+                    showToast(uploadWarning, 'warning');
+                } else {
+                    showToast(
+                        appState.appsScriptUrl
+                            ? 'Rekod & dokumen berjaya dikemas kini ke Google Sheet!'
+                            : 'Rekod dikemas kini dalam sistem! (Sambungkan URL Apps Script di menu Admin untuk simpan kekal ke Sheet).',
+                        'success'
+                    );
+                }
             } catch (err) {
                 showToast(`Gagal menyimpan: ${err.message}`, 'warning');
             } finally {
