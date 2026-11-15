@@ -319,7 +319,7 @@
         const m = String(msg || '');
         if (/PIN|Akses Ditolak|Terlalu banyak/i.test(m)) return m;
         if (/GID NaN|Action POST tidak sah|tidak dijumpai dalam Google Sheet/i.test(m)) {
-            return 'Backend belum menyokong data sulit. Pastikan 3 ubahan dalam CodePatch.txt sudah dibuat dalam Code.gs DAN Deploy > Manage deployments > New version.';
+            return 'Backend belum menyokong data sulit. Pastikan Code.gs versi penuh terkini sudah dipaste DAN Deploy > Manage deployments > edit > New version > Deploy.';
         }
         if (/belum disediakan|Tab Staff/i.test(m)) return m + ' (run setupSystem() dalam Apps Script).';
         return m || 'Ralat tidak diketahui.';
