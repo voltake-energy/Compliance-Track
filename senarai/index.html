@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ms" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="UniTrack — Senarai Kerja: pilih personel, semak sijil, jana listing dokumen personel untuk kerja tapak">
+    <title>UniTrack — Senarai Kerja</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { fontFamily: {
+                sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+                mono: ['"JetBrains Mono"', 'monospace']
+            } } }
+        };
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .hidden-view { display: none !important; }
+
+        /* ===== Dokumen listing (skrin + cetak) ===== */
+        #previewView { position: fixed; inset: 0; z-index: 60; overflow: auto; background: #94a3b8; }
+        #previewView .toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: #0f172a; color: #fff; }
+        .pg { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #fff; width: 210mm; max-width: 100%; min-height: 297mm; margin: 14px auto; padding: 12mm; box-shadow: 0 2px 12px rgba(0,0,0,.25); box-sizing: border-box; }
+        .pg table { border-collapse: collapse; width: 100%; }
+        .pg td, .pg th { border: 1px solid #000; padding: 5px 6px; vertical-align: middle; }
+        .pg th { font-weight: 700; text-align: center; }
+        .hdr td { font-size: 10px; text-align: center; }
+        .hdr .co { font-size: 13px; font-weight: 700; }
+        .hdr .logo { font-weight: 800; font-size: 14px; letter-spacing: .5px; line-height: 1.15; }
+        .doc-title { text-align: center; font-weight: 700; font-size: 14px; text-decoration: underline; margin: 16px 0 12px; }
+        .tbl td { text-align: center; }
+        .tbl td.l { text-align: left; }
+        .ptitle { border: 1px solid #000; margin-top: -1px; text-align: center; padding: 8px; font-size: 13px; }
+        .pbox { border: 1px solid #000; margin-top: -1px; padding: 8px; text-align: center; page-break-inside: avoid; break-inside: avoid; }
+        .pbox .lbl { font-size: 9px; color: #444; text-align: left; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+        .pbox img { max-width: 100%; max-height: 72mm; object-fit: contain; }
+        .pbox .miss { padding: 22px 8px; color: #b91c1c; font-weight: 700; }
+        .pbox .miss small { display: block; color: #555; font-weight: 400; margin-top: 4px; }
+        .pg.person .hdr { margin-bottom: 0; }
+
+        @page { size: A4; margin: 10mm; }
+        @media print {
+            html, body { background: #fff !important; }
+            #app, #loginView, #bottomBar, .no-print { display: none !important; }
+            #previewView { position: static !important; overflow: visible !important; background: #fff !important; }
+            .pg { box-shadow: none; margin: 0; padding: 0; width: auto; min-height: 0; page-break-after: always; break-after: page; }
+            .pg:last-child { page-break-after: auto; break-after: auto; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
+
+    <!-- ==================== LOG MASUK (PIN ADMIN) ==================== -->
+    <section id="loginView" class="min-h-screen flex items-center justify-center px-4">
+        <form id="loginForm" class="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-2xl"><i class="ph-bold ph-clipboard-text"></i></div>
+                <div>
+                    <h1 class="text-lg font-extrabold leading-tight">Senarai Kerja</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">UniTrack · Voltake Energy Services</p>
+                </div>
+            </div>
+            <div>
+                <label for="pinInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">PIN Admin</label>
+                <input id="pinInput" type="password" autocomplete="current-password" inputmode="text" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Masukkan PIN" required>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">Diperlukan untuk memaparkan no. IC, designation dan salinan IC.</p>
+            </div>
+            <p id="loginError" class="hidden-view text-sm font-semibold text-rose-600 dark:text-rose-400"></p>
+            <button id="loginBtn" type="submit" class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 text-sm transition">Masuk</button>
+        </form>
+    </section>
+
+    <!-- ==================== APLIKASI UTAMA ==================== -->
+    <div id="app" class="hidden-view pb-32">
+        <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xl"><i class="ph-bold ph-clipboard-text"></i></div>
+                    <div class="min-w-0">
+                        <h1 class="text-base sm:text-lg font-extrabold leading-tight truncate">Senarai Kerja</h1>
+                        <p id="syncInfo" class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Memuatkan…</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btnReload" type="button" title="Muat semula data" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-arrows-clockwise"></i></button>
+                    <button id="btnLogout" type="button" title="Log keluar" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-sign-out"></i></button>
+                </div>
+            </div>
+            <nav class="max-w-5xl mx-auto px-4 sm:px-6 flex gap-1 -mb-px" aria-label="Langkah">
+                <button id="tab1" type="button" class="tab px-4 py-2.5 text-sm font-bold border-b-2">1. Pilih Staf</button>
+                <button id="tab2" type="button" class="tab px-4 py-2.5 text-sm font-bold border-b-2">2. Senarai &amp; Jana <span id="tabCount" class="ml-1 inline-block min-w-[1.4rem] px-1.5 rounded-full bg-indigo-600 text-white text-[11px] text-center">0</span></button>
+            </nav>
+        </header>
+
+        <div id="loadError" class="hidden-view max-w-5xl mx-auto px-4 sm:px-6 mt-4">
+            <div class="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-sm text-rose-800 dark:text-rose-200" id="loadErrorText"></div>
+        </div>
+
+        <!-- ---------- LANGKAH 1: PILIH STAF ---------- -->
+        <main id="step1" class="max-w-5xl mx-auto px-4 sm:px-6 mt-5">
+            <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <div class="relative flex-1">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input id="searchInput" type="search" placeholder="Cari nama atau ID (cth. VES007)" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex gap-1.5 text-xs font-bold" id="filterChips">
+                    <button type="button" data-filter="all" class="fchip px-3 py-2 rounded-lg border">Semua</button>
+                    <button type="button" data-filter="selected" class="fchip px-3 py-2 rounded-lg border">Dipilih</button>
+                    <button type="button" data-filter="issue" class="fchip px-3 py-2 rounded-lg border">Ada masalah</button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-3 text-xs text-slate-500 dark:text-slate-400">
+                <span id="listCount">—</span>
+                <span class="flex gap-3">
+                    <button id="btnSelectVisible" type="button" class="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Pilih semua yang dipaparkan</button>
+                    <button id="btnClearSel" type="button" class="font-bold text-slate-500 hover:underline">Kosongkan</button>
+                </span>
+            </div>
+            <ul id="staffList" class="mt-3 space-y-2" aria-label="Senarai staf"></ul>
+            <p id="emptyList" class="hidden-view text-center text-sm text-slate-500 dark:text-slate-400 py-10">Tiada staf sepadan.</p>
+        </main>
+
+        <!-- ---------- LANGKAH 2: SENARAI & JANA ---------- -->
+        <main id="step2" class="hidden-view max-w-5xl mx-auto px-4 sm:px-6 mt-5 space-y-5">
+            <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5">
+                <label for="docTitle" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Tajuk dokumen</label>
+                <input id="docTitle" type="text" maxlength="160" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-4 mb-2">Lampiran yang dimasukkan dalam setiap halaman personel</p>
+                <div id="optBox" class="flex flex-wrap gap-2"></div>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <h2 class="text-sm font-extrabold">Senarai dipilih <span id="selTotal" class="text-slate-500 font-semibold"></span></h2>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400">Susunan di sini = susunan dalam dokumen</span>
+                </div>
+                <ol id="selList" class="divide-y divide-slate-100 dark:divide-slate-800"></ol>
+                <p id="selEmpty" class="hidden-view text-center text-sm text-slate-500 dark:text-slate-400 py-8">Belum ada staf dipilih. Kembali ke langkah 1.</p>
+            </section>
+
+            <section id="warnBox" class="hidden-view rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 sm:p-5">
+                <h2 class="text-sm font-extrabold text-amber-900 dark:text-amber-200 mb-2"><i class="ph-bold ph-warning"></i> Semak sebelum jana</h2>
+                <ul id="warnList" class="space-y-1.5 text-sm"></ul>
+            </section>
+        </main>
+    </div>
+
+    <!-- ==================== BAR BAWAH ==================== -->
+    <div id="bottomBar" class="hidden-view fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <p class="text-sm"><span id="barCount" class="font-extrabold">0</span> <span class="text-slate-500 dark:text-slate-400">staf dipilih</span></p>
+            <div class="flex gap-2">
+                <button id="btnNext" type="button" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold px-4 py-2.5 text-sm">Seterusnya <i class="ph-bold ph-arrow-right"></i></button>
+                <button id="btnGenerate" type="button" class="hidden-view rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold px-4 py-2.5 text-sm"><i class="ph-bold ph-file-pdf"></i> Jana Listing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PRATONTON / CETAK ==================== -->
+    <div id="previewView" class="hidden-view">
+        <div class="toolbar no-print">
+            <button id="btnBack" type="button" class="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm font-bold"><i class="ph-bold ph-arrow-left"></i> Kembali</button>
+            <span id="previewStatus" class="text-sm text-slate-200 flex-1 min-w-[10rem]"></span>
+            <button id="btnPrint" type="button" disabled class="rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 px-4 py-2 text-sm font-bold"><i class="ph-bold ph-printer"></i> Cetak / Simpan PDF</button>
+        </div>
+        <div id="printRoot"></div>
+    </div>
+
+    <script>
+    /* ============================================================================
+     * KONFIGURASI
+     * ========================================================================== */
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbe4NP4cC8ozLnE7xh-55Hx5FL7Bp5asvrujpi6bT47PumlPyXoSkri8rYRkqxThnTmA/exec";
+    const EXPIRING_DAYS = 60;          // dalam tempoh ini = "hampir tamat"
+    const IC_BATCH = 20;               // had Staff.gs (STAFF_MAX_IDS)
+    const COMPANY = {
+        name: 'VOLTAKE ENERGY SERVICES SDN BHD',
+        address: 'No. 22 & No. 22-1, Lorong Jawi Ria 1, Taman Jawi Ria, 14200 Jawi, Pulau Pinang, Malaysia'
+    };
+    const DEFAULT_TITLE = 'DETAILS OF WORKING PERSONNEL FOR SHUTDOWN WORKS AT TOYO TYRE';
+
+    // Jenis sijil dalam tab Cert (nama lajur mengikut Google Sheet).
+    const CERTS = [
+        { key: 'CIDB',  label: 'CIDB', short: 'CIDB',      dateCol: 'CIDB',              fileCol: 'CIDB Cert',       def: true  },
+        { key: 'NIOSH', label: 'NIOSH (NTSP)', short: 'NIOSH', dateCol: 'NIOSH',             fileCol: 'Niosh Cert',      def: true  },
+        { key: 'WAH',   label: 'Working at Height', short: 'WaH', dateCol: 'Working at Height', fileCol: 'WaH Cert',        def: false },
+        { key: 'FA',    label: 'First Aid', short: 'FA', dateCol: 'First Aid',         fileCol: 'First Aid Cert',  def: false }
+    ];
+
+    const SS_PIN = 'unitrack_admin_pin';        // dikongsi dengan dashboard
+    const SS_ACTIVE = 'unitrack_admin_active';
+    const LS_SEL = 'unitrack_senarai_sel';
+    const LS_TITLE = 'unitrack_senarai_title';
+    const LS_OPTS = 'unitrack_senarai_opts';
+
+    /* ============================================================================
+     * STATE
+     * ========================================================================== */
+    const S = {
+        pin: '', staff: [], byId: {}, hiddenInactive: 0,
+        selected: [],                       // ID mengikut susunan tick
+        q: '', filter: 'all', step: 1,
+        opts: { IC: true, CIDB: true, NIOSH: true, WAH: false, FA: false, CM: true },
+        icImages: {},                       // id -> {mime, base64, lowres} | {error}
+        loadedAt: null
+    };
+
+    /* ============================================================================
+     * UTILITI
+     * ========================================================================== */
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* abaikan */ } }
+    function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+    function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* abaikan */ } }
+    function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) { /* abaikan */ } }
+
+    function getField(row, names) {
+        if (!row) return '';
+        const keys = Object.keys(row);
+        for (const n of names) {
+            const k = keys.find((x) => x.toLowerCase().trim() === n.toLowerCase().trim());
+            if (k !== undefined && String(row[k]).trim() !== '') return String(row[k]).trim();
+        }
+        return '';
+    }
+
+    /** ID fail Drive dari pautan. Pautan mentah TIDAK digunakan; semua pautan dibina semula dari ID. */
+    function fileIdOf(url) {
+        const s = String(url || '');
+        const m = s.match(/\/d\/([-\w]{20,})/) || s.match(/[?&]id=([-\w]{20,})/);
+        return m ? m[1] : '';
+    }
+    const driveViewUrl = (id) => 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view';
+
+    function makeDate(y, m, d) {
+        const dt = new Date(y, m - 1, d);
+        return (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) ? dt : null;
+    }
+    function parseDate(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return null;
+        let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+        if (m) {
+            let d = +m[1], mo = +m[2], y = +m[3];
+            if (y < 100) y += 2000;
+            if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; }
+            return makeDate(y, mo, d);
+        }
+        m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+        if (m) return makeDate(+m[1], +m[2], +m[3]);
+        m = s.match(/^(\d{1,2})[\/\-.](\d{4})$/);            // MM/YYYY = akhir bulan
+        if (m && +m[1] >= 1 && +m[1] <= 12) return new Date(+m[2], +m[1], 0);
+        return null;
+    }
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const fmtDMY = (d) => pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+    const fmtMY = (d) => pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+
+    /** state: valid | expiring | expired | none | invalid */
+    function statusOf(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return { state: 'none', short: 'tiada', text: 'Tiada tarikh' };
+        const d = parseDate(s);
+        if (!d) return { state: 'invalid', short: 'tak sah', text: 'Format tarikh tidak dikenali: ' + s, date: null };
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+        if (days < 0) return { state: 'expired', short: 'TAMAT ' + fmtMY(d), text: 'Tamat ' + fmtDMY(d), date: d, days: days };
+        if (days <= EXPIRING_DAYS) return { state: 'expiring', short: fmtMY(d) + ' (' + days + 'h)', text: 'Tamat ' + fmtDMY(d) + ' (' + days + ' hari lagi)', date: d, days: days };
+        return { state: 'valid', short: fmtMY(d), text: 'Sah hingga ' + fmtDMY(d), date: d, days: days };
+    }
+
+    const CHIP_CLS = {
+        valid: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+        expiring: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        expired: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+        none: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+        invalid: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+    };
+    const chip = (label, st) => '<span title="' + esc(st.text) + '" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ' + CHIP_CLS[st.state] + '">' + esc(label) + ' <span class="font-mono font-semibold">' + esc(st.short) + '</span></span>';
+
+    /* ============================================================================
+     * API
+     * ========================================================================== */
+    async function apiGet(action) {
+        const r = await fetch(APPS_SCRIPT_URL + '?action=' + encodeURIComponent(action) + '&_t=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }
+    async function apiPost(payload) {
+        const r = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }
+
+    class PrivateApiError extends Error {}
+
+    function explainPrivateError(msg) {
+        const m = String(msg || '');
+        if (/PIN|Akses Ditolak|Terlalu banyak/i.test(m)) return m;
+        if (/GID NaN|Action POST tidak sah|tidak dijumpai dalam Google Sheet/i.test(m)) {
+            return 'Backend belum menyokong data sulit. Pastikan 3 ubahan dalam CodePatch.txt sudah dibuat dalam Code.gs DAN Deploy > Manage deployments > New version.';
+        }
+        if (/belum disediakan|Tab Staff/i.test(m)) return m + ' (run setupSystem() dalam Apps Script).';
+        return m || 'Ralat tidak diketahui.';
+    }
+
+    /* ============================================================================
+     * MUAT DATA
+     * ========================================================================== */
+    async function loadData() {
+        $('syncInfo').textContent = 'Memuatkan data…';
+        $('loadError').classList.add('hidden-view');
+        const [all, priv] = await Promise.all([
+            apiGet('getAllData'),
+            apiPost({ action: 'getPrivateStaff', adminPin: S.pin })
+        ]);
+        if (!all || all.status !== 'success') throw new Error((all && all.message) || 'Gagal membaca data sijil.');
+        if (!priv || priv.status !== 'success') throw new PrivateApiError(explainPrivateError(priv && priv.message));
+
+        const certRows = (all.data && all.data.cert) || [];
+        const cmRows = (all.data && all.data.chargeman) || [];
+        const privById = {};
+        (priv.data || []).forEach((p) => { privById[String(p.id).toUpperCase()] = p; });
+
+        const cmById = {};
+        cmRows.forEach((r) => {
+            const id = getField(r, ['ID']).toUpperCase();
+            if (!id) return;
+            (cmById[id] = cmById[id] || []).push({
+                farm: getField(r, ['Solar Farm', 'Site']),
+                no: getField(r, ['Competency No.', 'Competency No']),
+                st: statusOf(getField(r, ['Expiry Date', 'Expired Date'])),
+                fileId: fileIdOf(getField(r, ['Document']))
+            });
+        });
+
+        const staff = [];
+        const seen = {};
+        let hidden = 0;
+        const build = (id, row) => {
+            const p = privById[id];
+            if (p && p.aktif === false) { hidden++; return; }
+            const certs = {};
+            CERTS.forEach((c) => {
+                const raw = row ? getField(row, [c.dateCol]) : '';
+                certs[c.key] = { raw: raw, st: statusOf(raw), fileId: row ? fileIdOf(getField(row, [c.fileCol])) : '' };
+            });
+            staff.push({
+                id: id,
+                name: (row ? getField(row, ['NAME', 'Nama']) : '') || (p && p.name) || '-',
+                ic: (p && p.ic) || '',
+                designation: (p && p.designation) || '',
+                hasIcImage: !!(p && p.hasIcImage),
+                certs: certs,
+                cm: cmById[id] || []
+            });
+        };
+        certRows.forEach((row) => {
+            const id = getField(row, ['ID']).toUpperCase();
+            if (!id || seen[id]) return;
+            seen[id] = true;
+            build(id, row);
+        });
+        Object.keys(privById).forEach((id) => { if (!seen[id]) { seen[id] = true; build(id, null); } });
+
+        staff.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+        S.staff = staff;
+        S.byId = {};
+        staff.forEach((s) => { S.byId[s.id] = s; });
+        S.hiddenInactive = hidden;
+        S.selected = S.selected.filter((id) => S.byId[id]);
+        S.icImages = {};                              // muat semula = gambar IC diambil semula
+        S.loadedAt = new Date();
+        $('syncInfo').textContent = staff.length + ' staf · dikemas kini ' + pad2(S.loadedAt.getHours()) + ':' + pad2(S.loadedAt.getMinutes()) + (hidden ? ' · ' + hidden + ' tidak aktif disembunyi' : '');
+    }
+
+    /* ============================================================================
+     * LANGKAH 1: SENARAI STAF
+     * ========================================================================== */
+    function issuesOf(s) {
+        let n = 0;
+        CERTS.forEach((c) => { if (S.opts[c.key] && ['expired', 'none', 'invalid', 'expiring'].indexOf(s.certs[c.key].st.state) !== -1) n++; });
+        if (S.opts.CM) s.cm.forEach((c) => { if (['expired', 'invalid', 'expiring'].indexOf(c.st.state) !== -1) n++; });
+        return n;
+    }
+
+    function visibleStaff() {
+        const q = S.q.trim().toLowerCase();
+        return S.staff.filter((s) => {
+            if (q && s.id.toLowerCase().indexOf(q) === -1 && s.name.toLowerCase().indexOf(q) === -1) return false;
+            if (S.filter === 'selected' && S.selected.indexOf(s.id) === -1) return false;
+            if (S.filter === 'issue' && issuesOf(s) === 0) return false;
+            return true;
+        });
+    }
+
+    function renderStaffList() {
+        const list = visibleStaff();
+        const sel = new Set(S.selected);
+        $('staffList').innerHTML = list.map((s) => {
+            const on = sel.has(s.id);
+            const chips = CERTS.map((c) => chip(c.short, s.certs[c.key].st)).join(' ')
+                + s.cm.map((c) => ' ' + chip('CM', c.st)).join('');
+            return '<li><label data-id="' + esc(s.id) + '" class="staff-row flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition ' + (on
+                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-500'
+                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600') + '">'
+                + '<input type="checkbox" class="mt-1 w-5 h-5 accent-indigo-600 shrink-0" data-id="' + esc(s.id) + '"' + (on ? ' checked' : '') + '>'
+                + '<div class="min-w-0 flex-1">'
+                + '<div class="flex flex-wrap items-baseline gap-x-2"><span class="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">' + esc(s.id) + '</span>'
+                + '<span class="font-bold text-sm">' + esc(s.name) + '</span></div>'
+                + '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + esc(s.designation || 'Designation belum diisi') + '</p>'
+                + '<div class="flex flex-wrap gap-1.5 mt-2">' + chips + '</div>'
+                + '</div></label></li>';
+        }).join('');
+        $('emptyList').classList.toggle('hidden-view', list.length > 0);
+        $('listCount').textContent = list.length + ' daripada ' + S.staff.length + ' staf dipaparkan';
+        document.querySelectorAll('.fchip').forEach((b) => {
+            const active = b.dataset.filter === S.filter;
+            b.className = 'fchip px-3 py-2 rounded-lg border ' + (active
+                ? 'bg-indigo-600 border-indigo-600 text-white'
+                : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300');
+        });
+    }
+
+    function persistSelection() { lsSet(LS_SEL, JSON.stringify(S.selected)); }
+
+    function toggleStaff(id, force) {
+        const i = S.selected.indexOf(id);
+        const want = force === undefined ? i === -1 : force;
+        if (want && i === -1) S.selected.push(id);
+        if (!want && i !== -1) S.selected.splice(i, 1);
+        persistSelection();
+        updateCounts();
+    }
+
+    function updateCounts() {
+        const n = S.selected.length;
+        $('tabCount').textContent = n;
+        $('barCount').textContent = n;
+        $('btnNext').disabled = n === 0;
+        $('btnGenerate').disabled = n === 0;
+    }
+
+    /* ============================================================================
+     * LANGKAH 2: SENARAI DIPILIH, PILIHAN, AMARAN
+     * ========================================================================== */
+    function renderOptions() {
+        const items = [{ key: 'IC', label: 'Salinan IC' }]
+            .concat(CERTS.map((c) => ({ key: c.key, label: c.label })))
+            .concat([{ key: 'CM', label: 'Lesen Chargeman' }]);
+        $('optBox').innerHTML = items.map((o) =>
+            '<label class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer ' + (S.opts[o.key]
+                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
+                : 'border-slate-300 dark:border-slate-700') + '">'
+            + '<input type="checkbox" class="accent-indigo-600" data-opt="' + esc(o.key) + '"' + (S.opts[o.key] ? ' checked' : '') + '>' + esc(o.label) + '</label>'
+        ).join('');
+    }
+
+    function renderSelected() {
+        const n = S.selected.length;
+        $('selTotal').textContent = '(' + n + ')';
+        $('selEmpty').classList.toggle('hidden-view', n > 0);
+        $('selList').innerHTML = S.selected.map((id, i) => {
+            const s = S.byId[id];
+            return '<li class="flex items-center gap-3 px-4 sm:px-5 py-2.5">'
+                + '<span class="w-6 text-right text-xs font-mono text-slate-400">' + (i + 1) + '</span>'
+                + '<div class="min-w-0 flex-1"><p class="text-sm font-bold truncate">' + esc(s.name) + '</p>'
+                + '<p class="text-xs text-slate-500 dark:text-slate-400 truncate"><span class="font-mono">' + esc(s.id) + '</span> · ' + esc(s.designation || 'Designation belum diisi') + '</p></div>'
+                + '<div class="flex gap-1">'
+                + '<button type="button" data-mv="-1" data-id="' + esc(id) + '" title="Naik" class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30"' + (i === 0 ? ' disabled' : '') + '><i class="ph-bold ph-arrow-up"></i></button>'
+                + '<button type="button" data-mv="1" data-id="' + esc(id) + '" title="Turun" class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30"' + (i === n - 1 ? ' disabled' : '') + '><i class="ph-bold ph-arrow-down"></i></button>'
+                + '<button type="button" data-rm="1" data-id="' + esc(id) + '" title="Buang" class="w-8 h-8 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"><i class="ph-bold ph-x"></i></button>'
+                + '</div></li>';
+        }).join('');
+    }
+
+    /** Senarai amaran untuk staf dipilih. level: error | warn */
+    function collectWarnings() {
+        const out = [];
+        S.selected.forEach((id) => {
+            const s = S.byId[id];
+            const who = s.id + ' ' + s.name;
+            CERTS.forEach((c) => {
+                if (!S.opts[c.key]) return;
+                const ce = s.certs[c.key];
+                if (ce.st.state === 'none') out.push({ level: 'error', text: who + ': ' + c.label + ' tiada tarikh' });
+                else if (ce.st.state === 'expired') out.push({ level: 'error', text: who + ': ' + c.label + ' ' + ce.st.text.toLowerCase() });
+                else if (ce.st.state === 'invalid') out.push({ level: 'warn', text: who + ': ' + c.label + ' — ' + ce.st.text });
+                else if (ce.st.state === 'expiring') out.push({ level: 'warn', text: who + ': ' + c.label + ' ' + ce.st.text.toLowerCase() });
+                if (ce.st.state !== 'none' && !ce.fileId) out.push({ level: 'warn', text: who + ': ' + c.label + ' tiada lampiran fail' });
+            });
+            if (S.opts.CM) s.cm.forEach((c) => {
+                const nm = 'Chargeman' + (c.farm ? ' (' + c.farm + ')' : '');
+                if (c.st.state === 'expired') out.push({ level: 'error', text: who + ': ' + nm + ' ' + c.st.text.toLowerCase() });
+                else if (c.st.state === 'expiring') out.push({ level: 'warn', text: who + ': ' + nm + ' ' + c.st.text.toLowerCase() });
+                else if (c.st.state === 'invalid' || c.st.state === 'none') out.push({ level: 'warn', text: who + ': ' + nm + ' — ' + c.st.text });
+                if (!c.fileId) out.push({ level: 'warn', text: who + ': ' + nm + ' tiada lampiran fail' });
+            });
+            if (S.opts.IC && !s.hasIcImage) out.push({ level: 'warn', text: who + ': salinan IC belum dimuat naik (tab Staff)' });
+            if (!s.ic) out.push({ level: 'warn', text: who + ': no. IC belum diisi' });
+            if (!s.designation) out.push({ level: 'warn', text: who + ': designation belum diisi' });
+        });
+        return out;
+    }
+
+    function renderWarnings() {
+        const w = collectWarnings();
+        $('warnBox').classList.toggle('hidden-view', w.length === 0);
+        w.sort((a, b) => (a.level === b.level ? 0 : a.level === 'error' ? -1 : 1));
+        $('warnList').innerHTML = w.map((x) =>
+            '<li class="flex gap-2 ' + (x.level === 'error' ? 'text-rose-700 dark:text-rose-300 font-semibold' : 'text-amber-900 dark:text-amber-200') + '">'
+            + '<i class="ph-bold ' + (x.level === 'error' ? 'ph-x-circle' : 'ph-warning-circle') + ' mt-0.5 shrink-0"></i><span>' + esc(x.text) + '</span></li>'
+        ).join('');
+        return w;
+    }
+
+    function renderStep2() {
+        $('docTitle').value = lsGet(LS_TITLE) || DEFAULT_TITLE;
+        renderOptions();
+        renderSelected();
+        renderWarnings();
+    }
+
+    function showStep(n) {
+        S.step = n;
+        $('step1').classList.toggle('hidden-view', n !== 1);
+        $('step2').classList.toggle('hidden-view', n !== 2);
+        $('btnNext').classList.toggle('hidden-view', n !== 1);
+        $('btnGenerate').classList.toggle('hidden-view', n !== 2);
+        ['tab1', 'tab2'].forEach((id, i) => {
+            $(id).className = 'tab px-4 py-2.5 text-sm font-bold border-b-2 ' + ((i + 1) === n
+                ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300 dark:border-indigo-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700');
+        });
+        if (n === 2) renderStep2(); else renderStaffList();
+        window.scrollTo(0, 0);
+    }
+
+    /* ============================================================================
+     * JANA LISTING
+     * ========================================================================== */
+    async function fetchIcImages(ids) {
+        const need = ids.filter((id) => !S.icImages[id]);
+        for (let i = 0; i < need.length; i += IC_BATCH) {
+            const chunk = need.slice(i, i + IC_BATCH);
+            $('previewStatus').textContent = 'Mengambil salinan IC (' + Math.min(i + IC_BATCH, need.length) + '/' + need.length + ')…';
+            const r = await apiPost({ action: 'getIcImages', adminPin: S.pin, staffIds: chunk });
+            if (!r || r.status !== 'success') throw new PrivateApiError(explainPrivateError(r && r.message));
+            Object.keys(r.data || {}).forEach((k) => { S.icImages[k.toUpperCase()] = r.data[k]; });
+        }
+    }
+
+    function headerHtml() {
+        return '<table class="hdr"><tr>'
+            + '<td rowspan="2" style="width:26%"><div class="logo">VOLTAKE<br><span style="font-size:9px;font-weight:600">ENERGY SERVICES</span></div></td>'
+            + '<td style="width:20%">Company Name</td><td class="co">' + esc(COMPANY.name) + '</td></tr>'
+            + '<tr><td>Address</td><td>' + esc(COMPANY.address) + '</td></tr></table>';
+    }
+
+    function certNoOf(s) {
+        const nos = [];
+        s.cm.forEach((c) => { if (c.no && nos.indexOf(c.no) === -1) nos.push(c.no); });
+        return nos.length ? nos.join(' / ') : '-';
+    }
+
+    function coverHtml(title) {
+        const rows = S.selected.map((id, i) => {
+            const s = S.byId[id];
+            const d = s.certs.CIDB.st.date;
+            return '<tr><td>' + (i + 1) + '.</td><td class="l">' + esc(s.name) + '</td><td>' + esc(s.designation || '-') + '</td>'
+                + '<td>' + esc(d ? fmtMY(d) : '-') + '</td><td>' + esc(s.ic || '-') + '</td><td>' + esc(certNoOf(s)) + '</td></tr>';
+        }).join('');
+        return '<section class="pg cover">' + headerHtml()
+            + '<div class="doc-title">' + esc(title) + '</div>'
+            + '<table class="tbl"><thead><tr><th style="width:5%">NO.</th><th>NAME</th><th>DESIGNATION</th><th style="width:13%">CIDB EXPIRED DATE</th><th style="width:16%">IC NO.</th><th style="width:19%">CERT NO</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody></table></section>';
+    }
+
+    function slotMissing(text) { return '<div class="miss">' + esc(text) + '</div>'; }
+
+    function personHtml(id, no) {
+        const s = S.byId[id];
+        let boxes = '';
+        if (S.opts.IC) boxes += '<div class="pbox"><div class="lbl">Salinan IC</div><div class="slot" data-kind="ic" data-id="' + esc(id) + '"></div></div>';
+        CERTS.forEach((c) => {
+            if (!S.opts[c.key]) return;
+            const fid = s.certs[c.key].fileId;
+            boxes += '<div class="pbox"><div class="lbl">' + esc(c.label) + '</div>'
+                + (fid ? '<div class="slot" data-kind="drive" data-fid="' + esc(fid) + '"></div>' : slotMissing('Tiada lampiran ' + c.label)) + '</div>';
+        });
+        if (S.opts.CM) s.cm.forEach((c) => {
+            boxes += '<div class="pbox"><div class="lbl">Lesen Chargeman' + (c.farm ? ' — ' + esc(c.farm) : '') + (c.no ? ' (' + esc(c.no) + ')' : '') + '</div>'
+                + (c.fileId ? '<div class="slot" data-kind="drive" data-fid="' + esc(c.fileId) + '"></div>' : slotMissing('Tiada lampiran Chargeman')) + '</div>';
+        });
+        return '<section class="pg person">' + headerHtml()
+            + '<div class="ptitle">' + no + '. ' + esc(s.name) + '</div>' + boxes + '</section>';
+    }
+
+    /** Muat satu imej; cuba lh3 dahulu, kemudian thumbnail Drive. Selesai bila berjaya atau semua gagal. */
+    function loadDriveImage(slot, fid) {
+        const cand = [
+            'https://lh3.googleusercontent.com/d/' + encodeURIComponent(fid) + '=w1200',
+            'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fid) + '&sz=w1200'
+        ];
+        return new Promise((resolve) => {
+            let i = 0;
+            const tryNext = () => {
+                if (i >= cand.length) {
+                    slot.innerHTML = slotMissing('Gambar tidak dapat dipaparkan') ;
+                    const small = document.createElement('small');
+                    small.textContent = driveViewUrl(fid);
+                    slot.firstChild.appendChild(small);
+                    return resolve(false);
+                }
+                const img = new Image();
+                img.referrerPolicy = 'no-referrer';
+                img.alt = '';
+                img.onload = () => { slot.innerHTML = ''; slot.appendChild(img); resolve(true); };
+                img.onerror = () => { i++; tryNext(); };
+                img.src = cand[i];
+            };
+            tryNext();
+        });
+    }
+
+    function loadIcImage(slot, id) {
+        const d = S.icImages[id];
+        if (d && d.base64 && /^image\/(png|jpeg|jpg|gif|webp)$/.test(d.mime || '')) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.alt = '';
+                img.onload = () => { slot.innerHTML = ''; slot.appendChild(img); resolve(true); };
+                img.onerror = () => { slot.innerHTML = slotMissing('Salinan IC rosak'); resolve(false); };
+                img.src = 'data:' + d.mime + ';base64,' + d.base64;
+            });
+        }
+        const why = !d ? 'belum diambil' : d.error === 'TIADA_LINK' ? 'belum dimuat naik' : d.error === 'GAGAL_BACA' ? 'gagal dibaca dari Drive (semak perkongsian fail)' : (d.error || 'tidak tersedia');
+        slot.innerHTML = slotMissing('Salinan IC ' + why);
+        return Promise.resolve(false);
+    }
+
+    async function generate() {
+        if (!S.selected.length) return;
+        const warnings = renderWarnings();
+        const errs = warnings.filter((w) => w.level === 'error');
+        if (errs.length && !window.confirm('Ada ' + errs.length + ' isu serius (sijil tamat / tiada tarikh).\n\nTeruskan jana listing juga?')) return;
+
+        const title = ($('docTitle').value || '').trim() || DEFAULT_TITLE;
+        lsSet(LS_TITLE, title);
+
+        $('previewView').classList.remove('hidden-view');
+        $('printRoot').innerHTML = '';
+        $('btnPrint').disabled = true;
+        $('previewStatus').textContent = 'Menyediakan listing…';
+        document.body.style.overflow = 'hidden';
+
+        try {
+            if (S.opts.IC) await fetchIcImages(S.selected);
+        } catch (err) {
+            $('previewStatus').textContent = 'Gagal mengambil salinan IC: ' + err.message + '. Listing dijana tanpa salinan IC.';
+        }
+
+        $('printRoot').innerHTML = coverHtml(title) + S.selected.map((id, i) => personHtml(id, i + 1)).join('');
+
+        const slots = Array.from($('printRoot').querySelectorAll('.slot'));
+        let done = 0;
+        const tick = () => { done++; $('previewStatus').textContent = 'Memuatkan gambar ' + done + '/' + slots.length + '…'; };
+        const results = await Promise.all(slots.map((slot) => {
+            const p = slot.dataset.kind === 'ic' ? loadIcImage(slot, slot.dataset.id) : loadDriveImage(slot, slot.dataset.fid);
+            return p.then((ok) => { tick(); return ok; });
+        }));
+        const gagal = results.filter((r) => !r).length;
+        $('previewStatus').textContent = S.selected.length + ' personel · ' + slots.length + ' lampiran'
+            + (gagal ? ' · ' + gagal + ' tidak dapat dipaparkan (lihat kotak merah)' : ' · siap');
+        $('btnPrint').disabled = false;
+    }
+
+    function closePreview() {
+        $('previewView').classList.add('hidden-view');
+        document.body.style.overflow = '';
+    }
+
+    /* ============================================================================
+     * LOG MASUK
+     * ========================================================================== */
+    function showLogin(msg) {
+        $('app').classList.add('hidden-view');
+        $('bottomBar').classList.add('hidden-view');
+        $('loginView').classList.remove('hidden-view');
+        const e = $('loginError');
+        e.textContent = msg || '';
+        e.classList.toggle('hidden-view', !msg);
+        $('loginBtn').disabled = false;
+        $('loginBtn').textContent = 'Masuk';
+    }
+
+    async function enter(pin) {
+        S.pin = pin;
+        $('loginBtn').disabled = true;
+        $('loginBtn').textContent = 'Memeriksa…';
+        try {
+            await loadData();
+        } catch (err) {
+            if (err instanceof PrivateApiError) {
+                ssDel(SS_PIN); ssDel(SS_ACTIVE); S.pin = '';
+                return showLogin(err.message);
+            }
+            // Ralat rangkaian / data awam: PIN belum disahkan, tunjuk di log masuk.
+            return showLogin('Gagal menyambung ke Apps Script: ' + err.message);
+        }
+        ssSet(SS_PIN, pin); ssSet(SS_ACTIVE, 'true');
+        $('loginView').classList.add('hidden-view');
+        $('app').classList.remove('hidden-view');
+        $('bottomBar').classList.remove('hidden-view');
+        $('pinInput').value = '';
+        updateCounts();
+        showStep(S.step === 2 && S.selected.length ? 2 : 1);
+    }
+
+    function logout() {
+        ssDel(SS_PIN); ssDel(SS_ACTIVE);
+        S.pin = ''; S.staff = []; S.byId = {}; S.icImages = {};
+        closePreview();
+        showLogin('');
+    }
+
+    /* ============================================================================
+     * PERISTIWA
+     * ========================================================================== */
+    $('loginForm').addEventListener('submit', (e) => { e.preventDefault(); const v = $('pinInput').value.trim(); if (v) enter(v); });
+    $('btnLogout').addEventListener('click', logout);
+    $('btnReload').addEventListener('click', async () => {
+        try { await loadData(); updateCounts(); if (S.step === 2) renderStep2(); else renderStaffList(); }
+        catch (err) { $('loadErrorText').textContent = err.message; $('loadError').classList.remove('hidden-view'); }
+    });
+
+    $('searchInput').addEventListener('input', (e) => { S.q = e.target.value; renderStaffList(); });
+    $('filterChips').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { S.filter = b.dataset.filter; renderStaffList(); } });
+    $('staffList').addEventListener('change', (e) => {
+        const cb = e.target.closest('input[type=checkbox][data-id]');
+        if (cb) { toggleStaff(cb.dataset.id, cb.checked); renderStaffList(); }
+    });
+    $('btnSelectVisible').addEventListener('click', () => { visibleStaff().forEach((s) => toggleStaff(s.id, true)); renderStaffList(); });
+    $('btnClearSel').addEventListener('click', () => { S.selected = []; persistSelection(); updateCounts(); renderStaffList(); });
+
+    $('tab1').addEventListener('click', () => showStep(1));
+    $('tab2').addEventListener('click', () => showStep(2));
+    $('btnNext').addEventListener('click', () => showStep(2));
+
+    $('docTitle').addEventListener('input', (e) => lsSet(LS_TITLE, e.target.value));
+    $('optBox').addEventListener('change', (e) => {
+        const cb = e.target.closest('input[data-opt]');
+        if (!cb) return;
+        S.opts[cb.dataset.opt] = cb.checked;
+        lsSet(LS_OPTS, JSON.stringify(S.opts));
+        renderOptions(); renderWarnings();
+    });
+    $('selList').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-id]');
+        if (!b) return;
+        const id = b.dataset.id;
+        const i = S.selected.indexOf(id);
+        if (b.dataset.rm) { toggleStaff(id, false); }
+        else if (b.dataset.mv && i !== -1) {
+            const j = i + Number(b.dataset.mv);
+            if (j >= 0 && j < S.selected.length) { const t = S.selected[i]; S.selected[i] = S.selected[j]; S.selected[j] = t; persistSelection(); }
+        }
+        renderSelected(); renderWarnings(); updateCounts();
+    });
+
+    $('btnGenerate').addEventListener('click', generate);
+    $('btnBack').addEventListener('click', closePreview);
+    $('btnPrint').addEventListener('click', () => window.print());
+
+    /* ============================================================================
+     * MULA
+     * ========================================================================== */
+    (function init() {
+        try { const s = JSON.parse(lsGet(LS_SEL) || '[]'); if (Array.isArray(s)) S.selected = s.map((x) => String(x).toUpperCase()); } catch (e) { /* abaikan */ }
+        try { const o = JSON.parse(lsGet(LS_OPTS) || 'null'); if (o && typeof o === 'object') Object.keys(S.opts).forEach((k) => { if (typeof o[k] === 'boolean') S.opts[k] = o[k]; }); } catch (e) { /* abaikan */ }
+        const pin = ssGet(SS_PIN);
+        if (pin && ssGet(SS_ACTIVE) === 'true') enter(pin); else showLogin('');
+    })();
+    </script>
+</body>
+</html>
