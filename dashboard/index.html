@@ -1015,7 +1015,7 @@
             editingUid: null,
             pendingUploadFile: null,      // { fileName, mimeType, base64 }
             pendingCertFiles: {},         // Borang Cert: { 'CIDB Cert': {fileName, mimeType, base64}, ... }
-            pendingIcFile: null,          // Borang Cert: salinan IC { fileName, mimeType, base64 }
+            pendingIcFiles: {},           // Borang Cert: salinan IC { front: {...}, back: {...} }
             icLoadToken: 0                // elak data IC lama menimpa borang yang sudah ditutup
         };
 
@@ -3196,7 +3196,7 @@
             appState.crudMode = mode;
             appState.pendingUploadFile = null;
             appState.pendingCertFiles = {};
-            appState.pendingIcFile = null;
+            appState.pendingIcFiles = {};
             clearSelectedCrudFile();
 
             const titleEl = document.getElementById('crudModalTitle');
@@ -3436,20 +3436,14 @@
                         </div>
                         <div>
                             <label for="crudIcInput" class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">No. IC</label>
-                            <input type="text" id="crudIcInput" inputmode="numeric" maxlength="20" autocomplete="off" data-initial="" data-loaded="0" placeholder="Contoh: 920419-02-5445" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60">
+                            <input type="text" id="crudIcInput" inputmode="numeric" maxlength="14" autocomplete="off" data-initial="" data-loaded="0" oninput="this.value = formatIcValue(this.value)" placeholder="000000-00-0000" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60">
+                            <p class="text-[11px] text-slate-400 mt-1">Taip 12 digit sahaja, sengkang ditambah sendiri.</p>
                         </div>
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Salinan IC <span class="font-normal normal-case text-slate-400">(depan &amp; belakang dalam satu gambar)</span></span>
-                            </div>
-                            <div class="p-3 rounded-xl bg-white/70 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 flex flex-wrap items-center gap-2">
-                                <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-slate-700 transition">
-                                    <i class="ph-bold ph-upload-simple text-sm"></i>
-                                    <span>Pilih Fail (JPG / PNG / PDF)</span>
-                                    <input type="file" id="crudIcFile" accept="image/*,.pdf" onchange="handleCrudIcFile(event)" class="hidden">
-                                </label>
-                                <span id="crudIcFileName" class="text-xs font-mono text-slate-500 dark:text-slate-400 truncate min-w-0 flex-1">Tiada fail baharu dipilih</span>
-                                <button type="button" id="crudIcFileClear" onclick="clearCrudIcFile()" class="hidden text-xs font-bold text-rose-600 hover:underline">Padam</button>
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Salinan IC <span class="font-normal normal-case text-slate-400">(digabung sebelah-menyebelah dalam listing)</span></span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                ${icSideHtml('front', 'IC depan')}
+                                ${icSideHtml('back', 'IC belakang')}
                             </div>
                             <p id="crudIcState" class="text-[11px] text-slate-500 dark:text-slate-400"></p>
                             <p class="text-[11px] text-slate-400">Fail IC disimpan peribadi dalam Drive (tidak dikongsi) dan hanya digunakan untuk listing dokumen personel.</p>
@@ -3460,7 +3454,7 @@
                         ${cardsHtml}
                     </div>
                 `;
-                appState.pendingIcFile = null;
+                appState.pendingIcFiles = {};
                 if (record && record.staffId) loadPrivateIntoForm(record.staffId);
             }
         }
@@ -3491,10 +3485,17 @@
                 if (token !== appState.icLoadToken) return;
                 if (!r || r.status !== 'success') throw new Error((r && r.message) || 'Ralat tidak diketahui');
                 const p = (r.data || []).find(x => String(x.id).toUpperCase() === String(staffId).toUpperCase());
-                inp.value = p ? p.ic : '';
-                inp.dataset.initial = inp.value;
+                const icRaw = p ? String(p.ic || '') : '';
+                inp.value = /^\d{12}$/.test(icRaw.replace(/\D/g, '')) ? formatIcValue(icRaw) : icRaw;
+                inp.dataset.initial = icRaw;
                 inp.dataset.loaded = '1';
-                if (state) state.textContent = (p && p.hasIcImage) ? 'Salinan IC sedia ada akan diganti jika fail baharu dipilih.' : 'Belum ada salinan IC.';
+                const front = !!(p && (p.hasIcFront || (p.hasIcImage && p.hasIcFront === undefined)));
+                const back = !!(p && (p.hasIcBack || (p.hasIcImage && p.hasIcBack === undefined)));
+                [['front', front], ['back', back]].forEach(([side, ada]) => {
+                    const el = document.getElementById('crudIcState-' + side);
+                    if (el) el.textContent = ada ? 'Sedia ada (pilih untuk ganti)' : 'Belum ada';
+                });
+                if (state) state.textContent = '';
             } catch (err) {
                 if (token !== appState.icLoadToken) return;
                 if (state) state.textContent = 'Data IC tidak dapat dimuatkan: ' + err.message + ' (pastikan Code.gs terkini sudah di-deploy). Anda masih boleh mengisi IC baharu.';
@@ -3533,33 +3534,62 @@
             } finally { URL.revokeObjectURL(url); }
         }
 
-        async function handleCrudIcFile(event) {
+        /** No. IC: 12 digit, sengkang ditambah sendiri (000000-00-0000). */
+        function formatIcValue(v) {
+            const d = String(v || '').replace(/\D/g, '').slice(0, 12);
+            return d.slice(0, 6) + (d.length > 6 ? '-' + d.slice(6, 8) : '') + (d.length > 8 ? '-' + d.slice(8) : '');
+        }
+
+        /** Satu sisi IC: ambil gambar terus (kamera) atau pilih fail. */
+        function icSideHtml(side, label) {
+            const btn = 'cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-slate-700 transition';
+            return `
+                <div class="p-3 rounded-xl bg-white/70 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-extrabold text-slate-800 dark:text-slate-100">${label}</span>
+                        <span id="crudIcState-${side}" class="text-[11px] text-slate-500 dark:text-slate-400"></span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="${btn}"><i class="ph-bold ph-camera text-sm"></i><span>Ambil gambar</span>
+                            <input type="file" id="crudIcCam-${side}" accept="image/*" capture="environment" onchange="handleCrudIcSide('${side}', event)" class="hidden"></label>
+                        <label class="${btn}"><i class="ph-bold ph-folder-open text-sm"></i><span>Pilih fail</span>
+                            <input type="file" id="crudIcFile-${side}" accept="image/*,.pdf" onchange="handleCrudIcSide('${side}', event)" class="hidden"></label>
+                        <button type="button" id="crudIcClear-${side}" onclick="clearCrudIcSide('${side}')" class="hidden text-xs font-bold text-rose-600 hover:underline">Padam</button>
+                    </div>
+                    <div id="crudIcPrev-${side}" class="hidden items-center gap-2">
+                        <img id="crudIcThumb-${side}" alt="" class="h-12 w-auto rounded border border-slate-200 dark:border-slate-700">
+                        <span id="crudIcName-${side}" class="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate min-w-0"></span>
+                    </div>
+                </div>`;
+        }
+
+        async function handleCrudIcSide(side, event) {
             const file = event.target.files[0];
             if (!file) return;
-            const nameEl = document.getElementById('crudIcFileName');
             try {
-                appState.pendingIcFile = await prepareIcFile(file);
-                nameEl.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-                nameEl.className = 'text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate min-w-0 flex-1';
-                document.getElementById('crudIcFileClear').classList.remove('hidden');
+                const prepared = await prepareIcFile(file);
+                appState.pendingIcFiles[side] = prepared;
+                document.getElementById('crudIcName-' + side).textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+                const th = document.getElementById('crudIcThumb-' + side);
+                if (/^image\//.test(prepared.mimeType)) { th.src = 'data:' + prepared.mimeType + ';base64,' + prepared.base64; th.classList.remove('hidden'); }
+                else { th.removeAttribute('src'); th.classList.add('hidden'); }
+                const pv = document.getElementById('crudIcPrev-' + side);
+                pv.classList.remove('hidden'); pv.classList.add('flex');
+                document.getElementById('crudIcClear-' + side).classList.remove('hidden');
             } catch (err) {
-                appState.pendingIcFile = null;
+                delete appState.pendingIcFiles[side];
                 event.target.value = '';
                 showToast(err.message, 'warning');
             }
         }
 
-        function clearCrudIcFile() {
-            appState.pendingIcFile = null;
-            const input = document.getElementById('crudIcFile');
-            if (input) input.value = '';
-            const nameEl = document.getElementById('crudIcFileName');
-            if (nameEl) {
-                nameEl.textContent = 'Tiada fail baharu dipilih';
-                nameEl.className = 'text-xs font-mono text-slate-500 dark:text-slate-400 truncate min-w-0 flex-1';
-            }
-            const clearBtn = document.getElementById('crudIcFileClear');
-            if (clearBtn) clearBtn.classList.add('hidden');
+        function clearCrudIcSide(side) {
+            delete appState.pendingIcFiles[side];
+            ['crudIcCam-', 'crudIcFile-'].forEach(pfx => { const i = document.getElementById(pfx + side); if (i) i.value = ''; });
+            const pv = document.getElementById('crudIcPrev-' + side);
+            if (pv) { pv.classList.add('hidden'); pv.classList.remove('flex'); }
+            const c = document.getElementById('crudIcClear-' + side);
+            if (c) c.classList.add('hidden');
         }
 
         function dateToIsoInput(raw) {
@@ -3699,10 +3729,13 @@
             if (category === 'cert') {
                 const icEl = document.getElementById('crudIcInput');
                 if (icEl) {
-                    icVal = icEl.value.trim();
-                    icChanged = icEl.dataset.loaded === '1' ? icVal !== (icEl.dataset.initial || '') : icVal !== '';
-                    if (icChanged && icVal && !/^[\d-]{6,20}$/.test(icVal)) {
-                        showToast('No. IC: nombor dan sengkang sahaja (cth. 920419-02-5445).', 'warning');
+                    icVal = formatIcValue(icEl.value);
+                    icEl.value = icVal;
+                    const asal = icEl.dataset.initial || '';
+                    const asalFmt = /^\d{12}$/.test(asal.replace(/\D/g, '')) ? formatIcValue(asal) : asal;
+                    icChanged = icEl.dataset.loaded === '1' ? icVal !== asalFmt : icVal !== '';
+                    if (icChanged && icVal && !/^\d{6}-\d{2}-\d{4}$/.test(icVal)) {
+                        showToast('No. IC perlu 12 digit (format 000000-00-0000).', 'warning');
                         return;
                     }
                 }
@@ -3760,10 +3793,11 @@
                     if (resJson.uploadedFileUrl && targetCertField) {
                         sanitizedRow[targetCertField] = resJson.uploadedFileUrl;
                     }
-                    if (category === 'cert' && (icChanged || appState.pendingIcFile)) {
+                    if (category === 'cert' && (icChanged || appState.pendingIcFiles.front || appState.pendingIcFiles.back)) {
                         const icPayload = { action: 'updateStaffProfile', adminPin: appState.adminPin, staffId: String(rowObject.ID || '').trim().toUpperCase() };
                         if (icChanged) icPayload.ic = icVal;
-                        if (appState.pendingIcFile) icPayload.icFile = appState.pendingIcFile;
+                        if (appState.pendingIcFiles.front) icPayload.icFront = appState.pendingIcFiles.front;
+                        if (appState.pendingIcFiles.back) icPayload.icBack = appState.pendingIcFiles.back;
                         try {
                             const icRes = await dashPost(icPayload);
                             if (!icRes || icRes.status !== 'success') throw new Error((icRes && icRes.message) || 'Ralat tidak diketahui');
