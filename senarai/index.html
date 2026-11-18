@@ -112,7 +112,7 @@
         @page { size: A4; margin: 0; }
         @media print {
             html, body { background: #fff !important; }
-            #app, #loginView, #bottomBar, #toast, #editModal, #cropModal, #adjPanel, .no-print, .screen-foot { display: none !important; }
+            #app, #loginView, #bottomBar, #toast, #editModal, #fixModal, #cropModal, #adjPanel, .no-print, .screen-foot { display: none !important; }
             .fr.sel { outline: none !important; }
             .fr.adjustable { cursor: auto; }
             #previewView { position: static !important; overflow: visible !important; background: #fff !important; }
@@ -285,18 +285,42 @@
             </div>
             <div>
                 <label for="editIc" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">No. IC</label>
-                <input id="editIc" type="text" inputmode="numeric" maxlength="20" placeholder="cth. 920419-02-5445" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input id="editIc" type="text" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000000-00-0000" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Taip 12 digit sahaja, sengkang ditambah sendiri.</p>
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Salinan IC (depan dan belakang dalam satu gambar)</label>
-                <input id="editIcFile" type="file" accept="image/*,application/pdf" class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-bold file:text-indigo-700 dark:file:bg-indigo-950 dark:file:text-indigo-300">
-                <p id="editIcState" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5"></p>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400">Fail disimpan peribadi dalam Drive (tidak dikongsi). JPG atau PNG memberi hasil terbaik dalam PDF.</p>
+                <p class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Salinan IC</p>
+                <div id="editIcPicks" class="space-y-3"></div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Depan dan belakang digabung sebelah-menyebelah dalam listing. Fail disimpan peribadi dalam Drive (tidak dikongsi).</p>
             </div>
             <p id="editError" class="hidden-view text-sm font-semibold text-rose-600 dark:text-rose-400"></p>
             <div class="flex gap-2 justify-end">
                 <button type="button" id="editCancel" class="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm font-bold">Batal</button>
                 <button type="submit" id="editSave" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 text-sm">Simpan</button>
+            </div>
+        </form>
+    </div>
+    <!-- ==================== KEMAS KINI DARI SENARAI SEMAK ==================== -->
+    <div id="fixModal" class="hidden-view fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <form id="fixForm" class="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4 max-h-[92vh] overflow-auto">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 id="fixTitle" class="text-base font-extrabold">Kemas kini</h2>
+                    <p id="fixWho" class="text-xs text-slate-500 dark:text-slate-400 truncate"></p>
+                </div>
+                <button type="button" id="fixClose" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <p id="fixNow" class="text-xs rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-slate-600 dark:text-slate-300"></p>
+            <div>
+                <label for="fixDate" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Tarikh tamat baharu <span class="normal-case font-normal">(pilihan)</span></label>
+                <input id="fixDate" type="date" class="w-full sm:w-56 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div id="fixPicks"></div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Isi yang ada sahaja. Medan yang dibiar kosong tidak mengubah data sedia ada.</p>
+            <p id="fixError" class="hidden-view text-sm font-semibold text-rose-600 dark:text-rose-400"></p>
+            <div class="flex gap-2 justify-end">
+                <button type="button" id="fixCancel" class="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm font-bold">Batal</button>
+                <button type="submit" id="fixSave" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 text-sm">Simpan</button>
             </div>
         </form>
     </div>
@@ -370,7 +394,7 @@
      * ========================================================================== */
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbe4NP4cC8ozLnE7xh-55Hx5FL7Bp5asvrujpi6bT47PumlPyXoSkri8rYRkqxThnTmA/exec";
     const EXPIRING_DAYS = 60;          // dalam tempoh ini = "hampir tamat"
-    const IC_BATCH = 20;               // had Staff.gs (STAFF_MAX_IDS)
+    const IC_BATCH = 8;                // IC depan + belakang setiap staf: kumpulan kecil supaya respons tidak terlalu besar
     const COMPANY = {
         name: 'VOLTAKE ENERGY SERVICES SDN BHD',
         address: 'No. 22 & No. 22-1, Lorong Jawi Ria 1, Taman Jawi Ria, 14200 Jawi, Pulau Pinang, Malaysia'
@@ -542,6 +566,7 @@
             (cmById[id] = cmById[id] || []).push({
                 farm: getField(r, ['Solar Farm', 'Site']),
                 no: getField(r, ['Competency No.', 'Competency No']),
+                raw: getField(r, ['Expiry Date', 'Expired Date']),
                 st: statusOf(getField(r, ['Expiry Date', 'Expired Date'])),
                 fileId: fileIdOf(getField(r, ['Document']))
             });
@@ -564,6 +589,8 @@
                 ic: (p && p.ic) || '',
                 designation: (p && p.designation) || '',
                 hasIcImage: !!(p && p.hasIcImage),
+                hasIcFront: !!(p && (p.hasIcFront || (p.hasIcImage && p.hasIcFront === undefined))),
+                hasIcBack: !!(p && (p.hasIcBack || (p.hasIcImage && p.hasIcBack === undefined))),
                 certs: certs,
                 cm: cmById[id] || []
             });
@@ -686,31 +713,37 @@
         }).join('');
     }
 
-    /** Senarai amaran untuk staf dipilih. level: error | warn */
+    /** Senarai amaran untuk staf dipilih. level: error | warn. fix = tindakan butang di sebelah. */
     function collectWarnings() {
         const out = [];
         S.selected.forEach((id) => {
             const s = S.byId[id];
             const who = s.id + ' ' + s.name;
+            const add = (level, text, fix) => out.push({ level: level, text: who + ': ' + text, fix: fix || null });
             CERTS.forEach((c) => {
                 if (!S.opts[c.key]) return;
                 const ce = s.certs[c.key];
-                if (ce.st.state === 'none') out.push({ level: 'error', text: who + ': ' + c.label + ' tiada tarikh' });
-                else if (ce.st.state === 'expired') out.push({ level: 'error', text: who + ': ' + c.label + ' ' + ce.st.text.toLowerCase() });
-                else if (ce.st.state === 'invalid') out.push({ level: 'warn', text: who + ': ' + c.label + ' — ' + ce.st.text });
-                else if (ce.st.state === 'expiring') out.push({ level: 'warn', text: who + ': ' + c.label + ' ' + ce.st.text.toLowerCase() });
-                if (ce.st.state !== 'none' && !ce.fileId) out.push({ level: 'warn', text: who + ': ' + c.label + ' tiada lampiran fail' });
+                const fix = { t: 'cert', id: id, key: c.key };
+                if (ce.st.state === 'none') add('error', c.label + ' tiada tarikh', fix);
+                else if (ce.st.state === 'expired') add('error', c.label + ' ' + ce.st.text.toLowerCase(), fix);
+                else if (ce.st.state === 'invalid') add('warn', c.label + ' — ' + ce.st.text, fix);
+                else if (ce.st.state === 'expiring') add('warn', c.label + ' ' + ce.st.text.toLowerCase(), fix);
+                if (ce.st.state !== 'none' && !ce.fileId) add('warn', c.label + ' tiada lampiran fail', fix);
             });
-            if (S.opts.CM) s.cm.forEach((c) => {
+            if (S.opts.CM) s.cm.forEach((c, i) => {
                 const nm = 'Chargeman' + (c.farm ? ' (' + c.farm + ')' : '');
-                if (c.st.state === 'expired') out.push({ level: 'error', text: who + ': ' + nm + ' ' + c.st.text.toLowerCase() });
-                else if (c.st.state === 'expiring') out.push({ level: 'warn', text: who + ': ' + nm + ' ' + c.st.text.toLowerCase() });
-                else if (c.st.state === 'invalid' || c.st.state === 'none') out.push({ level: 'warn', text: who + ': ' + nm + ' — ' + c.st.text });
-                if (!c.fileId) out.push({ level: 'warn', text: who + ': ' + nm + ' tiada lampiran fail' });
+                const fix = c.no ? { t: 'cm', id: id, idx: i } : null;
+                if (c.st.state === 'expired') add('error', nm + ' ' + c.st.text.toLowerCase(), fix);
+                else if (c.st.state === 'expiring') add('warn', nm + ' ' + c.st.text.toLowerCase(), fix);
+                else if (c.st.state === 'invalid' || c.st.state === 'none') add('warn', nm + ' — ' + c.st.text, fix);
+                if (!c.fileId) add('warn', nm + ' tiada lampiran fail', fix);
             });
-            if (!s.hasIcImage) out.push({ level: 'error', text: who + ': salinan IC belum dimuat naik (wajib, guna butang Edit)' });
-            if (!s.ic) out.push({ level: 'warn', text: who + ': no. IC belum diisi (butang Edit)' });
-            if (!s.designation) out.push({ level: 'warn', text: who + ': designation belum diisi (butang Edit)' });
+            const prof = { t: 'profile', id: id };
+            if (!s.hasIcFront && !s.hasIcBack) add('error', 'salinan IC depan dan belakang belum dimuat naik (wajib)', prof);
+            else if (!s.hasIcFront) add('error', 'salinan IC depan belum dimuat naik (wajib)', prof);
+            else if (!s.hasIcBack) add('error', 'salinan IC belakang belum dimuat naik (wajib)', prof);
+            if (!s.ic) add('warn', 'no. IC belum diisi', prof);
+            if (!s.designation) add('warn', 'designation belum diisi', prof);
         });
         return out;
     }
@@ -719,9 +752,13 @@
         const w = collectWarnings();
         $('warnBox').classList.toggle('hidden-view', w.length === 0);
         w.sort((a, b) => (a.level === b.level ? 0 : a.level === 'error' ? -1 : 1));
-        $('warnList').innerHTML = w.map((x) =>
-            '<li class="flex gap-2 ' + (x.level === 'error' ? 'text-rose-700 dark:text-rose-300 font-semibold' : 'text-amber-900 dark:text-amber-200') + '">'
-            + '<i class="ph-bold ' + (x.level === 'error' ? 'ph-x-circle' : 'ph-warning-circle') + ' mt-0.5 shrink-0"></i><span>' + esc(x.text) + '</span></li>'
+        S.warnings = w;
+        $('warnList').innerHTML = w.map((x, i) =>
+            '<li class="flex items-start gap-2 ' + (x.level === 'error' ? 'text-rose-700 dark:text-rose-300 font-semibold' : 'text-amber-900 dark:text-amber-200') + '">'
+            + '<i class="ph-bold ' + (x.level === 'error' ? 'ph-x-circle' : 'ph-warning-circle') + ' mt-0.5 shrink-0"></i><span class="flex-1 min-w-0">' + esc(x.text) + '</span>'
+            + (x.fix ? '<button type="button" data-fix="' + i + '" class="shrink-0 inline-flex items-center gap-1 rounded-lg border border-current/30 bg-white/70 dark:bg-slate-900/60 px-2 py-0.5 text-[11px] font-bold hover:bg-white dark:hover:bg-slate-800">'
+                + '<i class="ph-bold ' + (x.fix.t === 'profile' ? 'ph-pencil-simple' : 'ph-upload-simple') + '"></i>' + (x.fix.t === 'profile' ? 'Edit' : 'Kemas kini') + '</button>' : '')
+            + '</li>'
         ).join('');
         return w;
     }
@@ -881,7 +918,7 @@
     const FR_H_DEFAULT = 64;          // tinggi lalai (mm): 3 lampiran muat satu halaman A4
     const IC_PX_PER_MM = 10;          // resolusi kanvas IC (254 dpi)
     const WM_TEXT = 'FOR OFFICIAL SITE WORK ONLY';
-    const WM_BASE = { on: true, x: 0.5, y: 0.5, s: 3.2, r: -15, o: 0.85 };   // x,y = pecahan lebar/tinggi bingkai; s = saiz huruf (% lebar)
+    const WM_BASE = { on: true, x: 0.5, y: 0.5, s: 4.2, r: -12, o: 0.85 };   // x,y = pecahan lebar/tinggi bingkai; s = saiz huruf (% lebar)
 
     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
     const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
@@ -1033,20 +1070,52 @@
         });
     }
 
-    function loadIcImage(slot, id) {
+    const IC_ERR = { TIADA_LINK: 'belum dimuat naik', GAGAL_BACA: 'gagal dibaca dari Drive', TIADA_PRATONTON: 'tiada pratonton' };
+
+    function imgFromPart(part) {
+        return new Promise((resolve) => {
+            if (!part || !part.base64 || !/^image\/(png|jpeg|jpg|gif|webp)$/.test(part.mime || '')) return resolve(null);
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = 'data:' + part.mime + ';base64,' + part.base64;
+        });
+    }
+
+    /** Gabung IC depan dan belakang sebelah-menyebelah (tinggi sama, jarak kecil di tengah). */
+    function composeIc(parts) {
+        if (parts.length === 1) return Promise.resolve(parts[0]);
+        const H = Math.min(1200, Math.max.apply(null, parts.map((i) => i.naturalHeight)));
+        const ws = parts.map((i) => Math.round(i.naturalWidth * H / i.naturalHeight));
+        const gap = Math.round(H * 0.06);
+        const c = document.createElement('canvas');
+        c.width = ws.reduce((a, b) => a + b, 0) + gap * (parts.length - 1);
+        c.height = H;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.imageSmoothingQuality = 'high';
+        let x = 0;
+        parts.forEach((img, i) => { ctx.drawImage(img, x, 0, ws[i], H); x += ws[i] + gap; });
+        return new Promise((resolve) => {
+            const out = new Image();
+            out.onload = () => resolve(out);
+            out.onerror = () => resolve(parts[0]);
+            out.src = c.toDataURL('image/jpeg', 0.92);
+        });
+    }
+
+    async function loadIcImage(slot, id) {
         const d = S.icImages[id];
-        if (d && d.base64 && /^image\/(png|jpeg|jpg|gif|webp)$/.test(d.mime || '')) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.alt = '';
-                img.onload = () => { initIcFrame(slot, img); resolve(true); };
-                img.onerror = () => { setMissing(slot, 'Salinan IC rosak'); resolve(false); };
-                img.src = 'data:' + d.mime + ';base64,' + d.base64;
-            });
+        const sides = d ? [d.front, d.back] : [];
+        const imgs = (await Promise.all(sides.map(imgFromPart))).filter(Boolean);
+        if (!imgs.length) {
+            const e = d && d.front && d.front.error;
+            setMissing(slot, 'Salinan IC ' + (!d ? 'belum diambil' : (IC_ERR[e] || e || 'tidak tersedia')));
+            return false;
         }
-        const why = !d ? 'belum diambil' : d.error === 'TIADA_LINK' ? 'belum dimuat naik' : d.error === 'GAGAL_BACA' ? 'gagal dibaca dari Drive (semak perkongsian fail)' : (d.error || 'tidak tersedia');
-        setMissing(slot, 'Salinan IC ' + why);
-        return Promise.resolve(false);
+        initIcFrame(slot, await composeIc(imgs));
+        return true;
     }
 
     /* ---------- pilih bingkai, panel laras ---------- */
@@ -1266,23 +1335,84 @@
         toastTimer = setTimeout(() => t.classList.add('hidden-view'), 3500);
     }
 
-    const EDIT = { id: '', file: null };
+    /* ---------- pemilih fail: ambil gambar terus (kamera) atau pilih fail ---------- */
+    const PICK = {};     // key -> File terpilih
+
+    function pickHtml(key, label, stateText, accept) {
+        const acc = accept || 'image/*,application/pdf';
+        const btn = 'cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-800';
+        return '<div class="pick rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3" data-pick="' + esc(key) + '">'
+            + '<div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-extrabold">' + esc(label) + '</span><span class="pick-state text-[11px] text-slate-500 dark:text-slate-400">' + esc(stateText || '') + '</span></div>'
+            + '<div class="flex flex-wrap items-center gap-2">'
+            + '<label class="' + btn + '"><i class="ph-bold ph-camera"></i> Ambil gambar<input type="file" accept="image/*" capture="environment" class="hidden"></label>'
+            + '<label class="' + btn + '"><i class="ph-bold ph-folder-open"></i> Pilih fail<input type="file" accept="' + esc(acc) + '" class="hidden"></label>'
+            + '<button type="button" class="pick-clear hidden-view text-xs font-bold text-rose-600 hover:underline">Buang</button>'
+            + '</div>'
+            + '<div class="pick-preview hidden-view mt-2 flex items-center gap-2"><img alt="" class="pick-thumb h-14 w-auto rounded border border-slate-200 dark:border-slate-700"><span class="pick-name text-[11px] font-mono text-emerald-700 dark:text-emerald-400 truncate"></span></div>'
+            + '</div>';
+    }
+
+    function pickSet(box, file) {
+        const key = box.dataset.pick;
+        const prev = box._url;
+        if (prev) URL.revokeObjectURL(prev);
+        box._url = null;
+        const pv = box.querySelector('.pick-preview'), th = box.querySelector('.pick-thumb');
+        if (!file) {
+            delete PICK[key];
+            box.querySelectorAll('input[type=file]').forEach((i) => { i.value = ''; });
+            pv.classList.add('hidden-view');
+            box.querySelector('.pick-clear').classList.add('hidden-view');
+            return;
+        }
+        PICK[key] = file;
+        box.querySelector('.pick-name').textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+        if (/^image\//.test(file.type)) { box._url = URL.createObjectURL(file); th.src = box._url; th.classList.remove('hidden-view'); }
+        else { th.removeAttribute('src'); th.classList.add('hidden-view'); }
+        pv.classList.remove('hidden-view');
+        box.querySelector('.pick-clear').classList.remove('hidden-view');
+    }
+
+    function pickClearAll(container) {
+        container.querySelectorAll('.pick').forEach((b) => pickSet(b, null));
+    }
+
+    document.addEventListener('change', (e) => {
+        const inp = e.target;
+        if (!inp.matches || !inp.matches('.pick input[type=file]')) return;
+        const f = inp.files && inp.files[0];
+        if (f) pickSet(inp.closest('.pick'), f);
+    });
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.pick-clear');
+        if (b) pickSet(b.closest('.pick'), null);
+    });
+
+    /** No. IC: 12 digit, sengkang ditambah sendiri (000000-00-0000). */
+    function formatIcValue(v) {
+        const d = String(v || '').replace(/\D/g, '').slice(0, 12);
+        return d.slice(0, 6) + (d.length > 6 ? '-' + d.slice(6, 8) : '') + (d.length > 8 ? '-' + d.slice(8) : '');
+    }
+    const icValid = (v) => v === '' || /^\d{6}-\d{2}-\d{4}$/.test(v);
+
+    const EDIT = { id: '' };
 
     function openEdit(id) {
         const s = S.byId[id];
         if (!s) return;
-        EDIT.id = id; EDIT.file = null;
+        EDIT.id = id;
         $('editWho').textContent = s.id + ' · ' + s.name;
         $('editDesignation').value = s.designation || '';
-        $('editIc').value = s.ic || '';
-        $('editIcFile').value = '';
-        $('editIcState').textContent = s.hasIcImage ? 'Salinan IC sedia ada akan diganti jika fail baharu dipilih.' : 'Belum ada salinan IC.';
+        $('editIc').value = s.ic ? (/^\d{12}$/.test(s.ic.replace(/\D/g, '')) ? formatIcValue(s.ic) : s.ic) : '';
+        $('editIcPicks').innerHTML = pickHtml('icFront', 'IC depan', s.hasIcFront ? 'Sedia ada (pilih untuk ganti)' : 'Belum ada', 'image/*')
+            + pickHtml('icBack', 'IC belakang', s.hasIcBack ? 'Sedia ada (pilih untuk ganti)' : 'Belum ada', 'image/*');
+        delete PICK.icFront; delete PICK.icBack;
         $('editError').classList.add('hidden-view');
         $('editSave').disabled = false;
         $('editSave').textContent = 'Simpan';
         $('editModal').classList.remove('hidden-view');
     }
-    function closeEdit() { $('editModal').classList.add('hidden-view'); }
+    function closeEdit() { pickClearAll($('editIcPicks')); $('editModal').classList.add('hidden-view'); }
 
     function readAsBase64(file) {
         return new Promise((resolve, reject) => {
@@ -1293,23 +1423,21 @@
         });
     }
 
-    /** Imej besar dikecilkan (maks 1800px, JPEG) supaya muat naik pantas dan kekal dalam had pelayan. */
-    async function prepareIcFile(file) {
+    /** Gambar dikecilkan (maks 1800px, JPEG) supaya muat naik pantas; PDF maks 4MB. */
+    async function prepareUpload(file) {
         if (file.type === 'application/pdf') {
             if (file.size > 4 * 1024 * 1024) throw new Error('PDF melebihi 4MB.');
             return { fileName: file.name, mimeType: file.type, base64: await readAsBase64(file) };
         }
-        if (!/^image\//.test(file.type)) throw new Error('Jenis fail tidak disokong. Guna JPG, PNG atau PDF.');
+        if (!/^image\//.test(file.type)) throw new Error('Jenis fail tidak disokong. Guna gambar atau PDF.');
         const url = URL.createObjectURL(file);
         try {
             const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Gambar tidak boleh dibaca (cuba JPG atau PNG).')); i.src = url; });
-            const max = 1800;
-            const k = Math.min(1, max / Math.max(img.width, img.height));
+            const k = Math.min(1, 1800 / Math.max(img.width, img.height));
             const c = document.createElement('canvas');
             c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
             c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-            const b64 = c.toDataURL('image/jpeg', 0.85).split(',')[1];
-            return { fileName: file.name.replace(/\.[^.]+$/, '') + '.jpg', mimeType: 'image/jpeg', base64: b64 };
+            return { fileName: (file.name || 'gambar').replace(/\.[^.]+$/, '') + '.jpg', mimeType: 'image/jpeg', base64: c.toDataURL('image/jpeg', 0.85).split(',')[1] };
         } finally { URL.revokeObjectURL(url); }
     }
 
@@ -1320,26 +1448,25 @@
         const err = $('editError');
         err.classList.add('hidden-view');
         const designation = $('editDesignation').value.trim();
-        const ic = $('editIc').value.trim();
-        if (ic && !/^[\d-]{6,20}$/.test(ic)) { err.textContent = 'No. IC: nombor dan sengkang sahaja (cth. 920419-02-5445).'; err.classList.remove('hidden-view'); return; }
+        const ic = formatIcValue($('editIc').value);
+        $('editIc').value = ic;
+        if (!icValid(ic)) { err.textContent = 'No. IC perlu 12 digit (format 000000-00-0000).'; err.classList.remove('hidden-view'); return; }
 
         const payload = { action: 'updateStaffProfile', adminPin: S.pin, staffId: s.id };
         if (designation !== (s.designation || '')) payload.designation = designation;
         if (ic !== (s.ic || '')) payload.ic = ic;
-        const f = $('editIcFile').files[0];
 
         $('editSave').disabled = true;
         $('editSave').textContent = 'Menyimpan…';
         try {
-            if (f) payload.icFile = await prepareIcFile(f);
-            if (!payload.designation && payload.designation !== '' && !payload.ic && payload.ic !== '' && !payload.icFile) {
+            if (PICK.icFront) payload.icFront = await prepareUpload(PICK.icFront);
+            if (PICK.icBack) payload.icBack = await prepareUpload(PICK.icBack);
+            if (payload.designation === undefined && payload.ic === undefined && !payload.icFront && !payload.icBack) {
                 closeEdit(); toast('Tiada perubahan.'); return;
             }
             const r = await apiPost(payload);
             if (!r || r.status !== 'success') throw new Error(explainPrivateError(r && r.message));
-            await loadData();
-            updateCounts();
-            renderCurrent();
+            await afterUpdate();
             closeEdit();
             toast('Disimpan: ' + ((r.data && r.data.changed) || []).join(', '));
         } catch (ex) {
@@ -1347,6 +1474,85 @@
             err.classList.remove('hidden-view');
             $('editSave').disabled = false;
             $('editSave').textContent = 'Simpan';
+        }
+    }
+
+    /** Selepas sebarang kemas kini: muat semula data, kosongkan cache IC staf berkenaan, lukis semula. */
+    async function afterUpdate() {
+        await loadData();
+        updateCounts();
+        renderCurrent();
+    }
+
+    /* ---------- kemas kini terus dari senarai semak ---------- */
+    const FIX = { w: null };
+
+    function openFix(w) {
+        const f = w.fix, s = S.byId[f.id];
+        if (!s) return;
+        if (f.t === 'profile') return openEdit(f.id);
+        FIX.w = w;
+        let label, raw, hasFile;
+        if (f.t === 'cert') {
+            const c = CERTS.find((x) => x.key === f.key);
+            const ce = s.certs[f.key];
+            label = c.label; raw = ce.raw; hasFile = !!ce.fileId;
+        } else {
+            const c = s.cm[f.idx];
+            label = 'Lesen Chargeman' + (c.farm ? ' (' + c.farm + ')' : '') + ' ' + c.no;
+            raw = c.raw; hasFile = !!c.fileId;
+        }
+        $('fixTitle').textContent = 'Kemas kini ' + label;
+        $('fixWho').textContent = s.id + ' · ' + s.name;
+        $('fixNow').textContent = 'Sekarang: tarikh ' + (raw || 'tiada') + ' · fail ' + (hasFile ? 'ada' : 'tiada');
+        const d = parseDate(raw);
+        const iso = d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) : '';
+        $('fixDate').value = iso;
+        $('fixDate').dataset.initial = iso;
+        $('fixPicks').innerHTML = pickHtml('fixDoc', 'Dokumen sijil (pilihan)', hasFile ? 'Sedia ada (pilih untuk ganti)' : 'Belum ada');
+        delete PICK.fixDoc;
+        $('fixError').classList.add('hidden-view');
+        $('fixSave').disabled = false;
+        $('fixSave').textContent = 'Simpan';
+        $('fixModal').classList.remove('hidden-view');
+    }
+    function closeFix() { pickClearAll($('fixPicks')); $('fixModal').classList.add('hidden-view'); FIX.w = null; }
+
+    async function saveFix(e) {
+        e.preventDefault();
+        const w = FIX.w;
+        if (!w) return;
+        const f = w.fix, s = S.byId[f.id];
+        const err = $('fixError');
+        err.classList.add('hidden-view');
+        const iso = $('fixDate').value;
+        const dateChanged = iso && iso !== ($('fixDate').dataset.initial || '');
+        if (!dateChanged && !PICK.fixDoc) { closeFix(); toast('Tiada perubahan.'); return; }
+        $('fixSave').disabled = true;
+        $('fixSave').textContent = 'Menyimpan…';
+        try {
+            const file = PICK.fixDoc ? await prepareUpload(PICK.fixDoc) : null;
+            let payload;
+            if (f.t === 'cert') {
+                const c = CERTS.find((x) => x.key === f.key);
+                payload = { action: 'staffUpdateCert', staffId: s.id, updates: {}, uploads: {} };
+                if (dateChanged) payload.updates[c.dateCol] = isoToDMY(iso);
+                if (file) payload.uploads[c.fileCol] = file;
+            } else {
+                payload = { action: 'updateChargeman', adminPin: S.pin, staffId: s.id, competencyNo: s.cm[f.idx].no };
+                if (dateChanged) payload.expiry = isoToDMY(iso);
+                if (file) payload.file = file;
+            }
+            const r = await apiPost(payload);
+            if (!r || r.status !== 'success') throw new Error(explainPrivateError(r && r.message));
+            await afterUpdate();
+            closeFix();
+            toast('Dikemas kini.');
+        } catch (ex) {
+            err.textContent = ex.message;
+            err.classList.remove('hidden-view');
+            $('fixSave').disabled = false;
+            $('fixSave').textContent = 'Simpan';
         }
     }
 
@@ -1459,6 +1665,17 @@
         if (b) { e.preventDefault(); openEdit(b.dataset.edit); }
     });
     $('editForm').addEventListener('submit', saveEdit);
+    $('editIc').addEventListener('input', (e) => { e.target.value = formatIcValue(e.target.value); });
+    $('warnList').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-fix]');
+        if (!b || !S.warnings) return;
+        const w = S.warnings[+b.dataset.fix];
+        if (w && w.fix) openFix(w);
+    });
+    $('fixForm').addEventListener('submit', saveFix);
+    $('fixCancel').addEventListener('click', closeFix);
+    $('fixClose').addEventListener('click', closeFix);
+    $('fixModal').addEventListener('click', (e) => { if (e.target === $('fixModal')) closeFix(); });
     $('editCancel').addEventListener('click', closeEdit);
     $('editClose').addEventListener('click', closeEdit);
     $('editModal').addEventListener('click', (e) => { if (e.target === $('editModal')) closeEdit(); });
